@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  DEFAULT_SNIPPET_SORT,
   hasActiveSnippetFilters,
+  nextSnippetSort,
   parseSnippetFilters,
+  parseSnippetSort,
 } from "@/lib/snippet-filters";
 
 describe("parseSnippetFilters", () => {
@@ -37,5 +40,52 @@ describe("hasActiveSnippetFilters", () => {
     assert.equal(hasActiveSnippetFilters({ language: "go" }), true);
     assert.equal(hasActiveSnippetFilters({ status: "not_reviewed" }), true);
     assert.equal(hasActiveSnippetFilters({}), false);
+  });
+});
+
+describe("parseSnippetSort", () => {
+  it("defaults to created desc", () => {
+    assert.deepEqual(parseSnippetSort({}), DEFAULT_SNIPPET_SORT);
+  });
+
+  it("accepts known sort fields and orders", () => {
+    assert.deepEqual(parseSnippetSort({ sort: "title", order: "asc" }), {
+      field: "title",
+      order: "asc",
+    });
+  });
+
+  it("falls back to the field default order when order is missing", () => {
+    assert.deepEqual(parseSnippetSort({ sort: "language" }), {
+      field: "language",
+      order: "asc",
+    });
+    assert.deepEqual(parseSnippetSort({ sort: "created" }), {
+      field: "created",
+      order: "desc",
+    });
+  });
+
+  it("ignores unknown sort values", () => {
+    assert.deepEqual(parseSnippetSort({ sort: "priority", order: "sideways" }), {
+      field: "created",
+      order: "desc",
+    });
+  });
+});
+
+describe("nextSnippetSort", () => {
+  it("toggles order when the same field is clicked", () => {
+    assert.deepEqual(
+      nextSnippetSort({ field: "title", order: "asc" }, "title"),
+      { field: "title", order: "desc" },
+    );
+  });
+
+  it("switches field with its default order", () => {
+    assert.deepEqual(
+      nextSnippetSort({ field: "title", order: "asc" }, "created"),
+      { field: "created", order: "desc" },
+    );
   });
 });

@@ -55,8 +55,13 @@ export function SnippetFilters() {
   }
 
   function clearFilters() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("language");
+    params.delete("status");
+    const query = params.toString();
+
     startTransition(() => {
-      router.replace(pathname);
+      router.replace(query ? `${pathname}?${query}` : pathname);
     });
   }
 

@@ -3,15 +3,19 @@ import Link from "next/link";
 import { NewSnippetButton } from "@/components/NewSnippetButton";
 import { SnippetFilters } from "@/components/SnippetFilters";
 import { SnippetRow } from "@/components/SnippetRow";
+import { SortableColumnHeader } from "@/components/SortableColumnHeader";
+import type { SnippetListSort } from "@/lib/snippet-filters";
 import type { SnippetListItem } from "@/lib/snippets";
 
 type SnippetListProps = {
   snippets: SnippetListItem[];
+  sort: SnippetListSort;
   filtersActive?: boolean;
 };
 
 export function SnippetList({
   snippets,
+  sort,
   filtersActive = false,
 }: SnippetListProps) {
   const showFilters = filtersActive || snippets.length > 0;
@@ -63,12 +67,24 @@ export function SnippetList({
       <SnippetFilters />
       <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow)]">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-border bg-surface-muted text-xs font-medium uppercase tracking-wide text-muted">
+          <thead className="border-b border-border bg-surface-muted text-xs font-medium tracking-wide">
             <tr>
-              <th className="px-5 py-3 font-medium sm:px-6">Title</th>
-              <th className="px-5 py-3 font-medium sm:px-6">Language</th>
-              <th className="px-5 py-3 font-medium sm:px-6">Created</th>
-              <th className="px-5 py-3 font-medium sm:px-6">Review status</th>
+              <SortableColumnHeader field="title" label="Title" sort={sort} />
+              <SortableColumnHeader
+                field="language"
+                label="Language"
+                sort={sort}
+              />
+              <SortableColumnHeader
+                field="created"
+                label="Created"
+                sort={sort}
+              />
+              <SortableColumnHeader
+                field="status"
+                label="Review status"
+                sort={sort}
+              />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

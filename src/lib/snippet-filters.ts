@@ -9,6 +9,19 @@ export type SnippetListFilters = {
   status?: DisplayReviewStatus;
 };
 
+export type SnippetSortField = "title" | "language" | "created" | "status";
+export type SnippetSortOrder = "asc" | "desc";
+
+export type SnippetListSort = {
+  field: SnippetSortField;
+  order: SnippetSortOrder;
+};
+
+export const DEFAULT_SNIPPET_SORT: SnippetListSort = {
+  field: "created",
+  order: "desc",
+};
+
 export const REVIEW_STATUS_FILTERS: {
   value: DisplayReviewStatus;
   label: string;
@@ -31,6 +44,20 @@ const statusValues = new Set<DisplayReviewStatus>([
   "reviewed",
   "failed",
 ]);
+const sortFields = new Set<SnippetSortField>([
+  "title",
+  "language",
+  "created",
+  "status",
+]);
+const sortOrders = new Set<SnippetSortOrder>(["asc", "desc"]);
+
+/** Preferred first-click direction per column. */
+export function defaultOrderForSortField(
+  field: SnippetSortField,
+): SnippetSortOrder {
+  return field === "created" ? "desc" : "asc";
+}
 
 function firstParam(
   value: string | string[] | undefined,
@@ -58,6 +85,46 @@ export function parseSnippetFilters(searchParams: {
   };
 }
 
+export function parseSnippetSort(searchParams: {
+  sort?: string | string[];
+  order?: string | string[];
+}): SnippetListSort {
+  const sort = firstParam(searchParams.sort);
+  const order = firstParam(searchParams.order);
+
+  const field =
+    sort && sortFields.has(sort as SnippetSortField)
+      ? (sort as SnippetSortField)
+      : DEFAULT_SNIPPET_SORT.field;
+
+  const parsedOrder =
+    order && sortOrders.has(order as SnippetSortOrder)
+      ? (order as SnippetSortOrder)
+      : undefined;
+
+  return {
+    field,
+    order: parsedOrder ?? defaultOrderForSortField(field),
+  };
+}
+
 export function hasActiveSnippetFilters(filters: SnippetListFilters): boolean {
   return Boolean(filters.language || filters.status);
+}
+
+export function nextSnippetSort(
+  current: SnippetListSort,
+  field: SnippetSortField,
+): SnippetListSort {
+  if (current.field === field) {
+    return {
+      field,
+      order: current.order === "asc" ? "desc" : "asc",
+    };
+  }
+
+  return {
+    field,
+    order: defaultOrderForSortField(field),
+  };
 }

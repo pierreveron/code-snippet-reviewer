@@ -11,8 +11,15 @@ import {
   type FindingSeverity,
 } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
-import type { DisplayReviewStatus } from "@/lib/review-status";
-import type { SnippetListFilters } from "@/lib/snippet-filters";
+import {
+  toDisplayReviewStatus,
+  type DisplayReviewStatus,
+} from "@/lib/review-status";
+import {
+  DEFAULT_SNIPPET_SORT,
+  type SnippetListFilters,
+  type SnippetListSort,
+} from "@/lib/snippet-filters";
 
 export type SnippetListItem = {
   id: string;
@@ -90,15 +97,60 @@ function snippetListWhere(
   return { AND: clauses };
 }
 
+const reviewStatusRank: Record<DisplayReviewStatus, number> = {
+  not_reviewed: 0,
+  in_progress: 1,
+  reviewed: 2,
+  failed: 3,
+};
+
+function snippetListOrderBy(
+  sort: SnippetListSort,
+): Prisma.SnippetOrderByWithRelationInput[] {
+  const direction = sort.order;
+
+  switch (sort.field) {
+    case "title":
+      return [{ title: direction }, { createdAt: "desc" }];
+    case "language":
+      return [{ language: direction }, { createdAt: "desc" }];
+    case "created":
+      return [{ createdAt: direction }];
+    case "status":
+      // Null reviews need display-aware ranking — sorted in memory below.
+      return [{ createdAt: "desc" }];
+  }
+}
+
+function sortByReviewStatus(
+  snippets: SnippetListItem[],
+  order: SnippetListSort["order"],
+): SnippetListItem[] {
+  const direction = order === "asc" ? 1 : -1;
+
+  return [...snippets].sort((left, right) => {
+    const leftRank = reviewStatusRank[toDisplayReviewStatus(left.reviewStatus)];
+    const rightRank =
+      reviewStatusRank[toDisplayReviewStatus(right.reviewStatus)];
+
+    if (leftRank !== rightRank) {
+      return (leftRank - rightRank) * direction;
+    }
+
+    return right.createdAt.getTime() - left.createdAt.getTime();
+  });
+}
+
 export async function listSnippets(
   filters: SnippetListFilters = {},
+  sort: SnippetListSort = DEFAULT_SNIPPET_SORT,
 ): Promise<SnippetListItem[]> {
   // better-sqlite3 can resolve during prerender; wait for a request first.
   await connection();
 
   const snippets = await db.snippet.findMany({
     where: snippetListWhere(filters),
-    orderBy: { createdAt: "desc" },
+    orderBy: snippetListOrderBy(sort),
     select: {
       id: true,
       title: true,
@@ -110,13 +162,19 @@ export async function listSnippets(
     },
   });
 
-  return snippets.map((snippet) => ({
+  const items = snippets.map((snippet) => ({
     id: snippet.id,
     title: snippet.title,
     language: snippet.language,
     createdAt: snippet.createdAt,
     reviewStatus: snippet.review?.status ?? null,
   }));
+
+  if (sort.field === "status") {
+    return sortByReviewStatus(items, sort.order);
+  }
+
+  return items;
 }
 
 export async function getSnippet(id: string): Promise<SnippetDetail> {
