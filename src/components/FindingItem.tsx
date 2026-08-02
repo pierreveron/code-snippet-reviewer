@@ -77,52 +77,55 @@ export function FindingItem({
 
   return (
     <li>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onSelect}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onSelect();
-          }
-        }}
+      <article
+        aria-current={selected ? "true" : undefined}
         className={[
           "w-full rounded-lg border px-3 py-3 text-left transition-colors",
           selected
             ? "border-accent bg-accent-soft/50 ring-1 ring-accent/30"
-            : "border-border bg-surface hover:bg-surface-muted",
+            : "border-border bg-surface",
           isResolved ? "opacity-70" : "",
         ].join(" ")}
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs font-medium text-muted">
-            {lineLabel(finding.startLine, finding.endLine)}
-          </span>
-          <span
-            className={[
-              "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
-              severityStyles[finding.severity],
-            ].join(" ")}
-          >
-            {finding.severity.toLowerCase()}
-          </span>
-          <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">
-            {categoryLabels[finding.category]}
-          </span>
-          {isResolved ? (
-            <span className="text-[11px] font-medium text-muted">
-              {finding.resolution === "ACCEPTED" ? "Applied" : "Dismissed"}
+        <button
+          type="button"
+          onClick={onSelect}
+          className="w-full rounded-md text-left outline-none ring-accent/30 focus-visible:ring-2"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-xs font-medium text-muted">
+              {lineLabel(finding.startLine, finding.endLine)}
             </span>
-          ) : null}
-        </div>
+            <span
+              className={[
+                "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
+                severityStyles[finding.severity],
+              ].join(" ")}
+            >
+              {finding.severity.toLowerCase()}
+            </span>
+            <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">
+              {categoryLabels[finding.category]}
+            </span>
+            {isResolved ? (
+              <span className="text-[11px] font-medium text-muted">
+                {finding.resolution === "ACCEPTED" ? "Applied" : "Dismissed"}
+              </span>
+            ) : null}
+          </div>
 
-        <p className="mt-2 text-sm leading-relaxed text-foreground">
-          {finding.description}
-        </p>
+          <p className="mt-2 text-sm leading-relaxed text-foreground">
+            {finding.description}
+          </p>
+        </button>
 
         {finding.suggestedFix ? (
-          <SuggestedChangeDiff suggestedFix={finding.suggestedFix} />
+          <div onClick={onSelect}>
+            <SuggestedChangeDiff
+              suggestedFix={finding.suggestedFix}
+              defaultOpen={finding.resolution === "OPEN"}
+            />
+          </div>
         ) : null}
 
         {actionError ? (
@@ -135,10 +138,7 @@ export function FindingItem({
               <button
                 type="button"
                 disabled={isPending}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleAccept();
-                }}
+                onClick={handleAccept}
                 className="inline-flex h-7 items-center rounded-md bg-accent px-2.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {isPending ? "Applying…" : "Apply suggestion"}
@@ -147,17 +147,14 @@ export function FindingItem({
             <button
               type="button"
               disabled={isPending}
-              onClick={(event) => {
-                event.stopPropagation();
-                handleDismiss();
-              }}
+              onClick={handleDismiss}
               className="inline-flex h-7 items-center rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
             >
               Dismiss
             </button>
           </div>
         ) : null}
-      </div>
+      </article>
     </li>
   );
 }
