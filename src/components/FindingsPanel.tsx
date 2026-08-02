@@ -3,18 +3,45 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 
 import { FindingItem, findingOptionId } from "@/components/FindingItem";
+import type { ReviewStatus } from "@/generated/prisma/enums";
 import type { SnippetFinding } from "@/lib/snippets";
 
 type FindingsPanelProps = {
   findings: SnippetFinding[];
+  reviewStatus: ReviewStatus | "SUPERSEDED" | null;
   selectedFindingId: string | null;
   onSelectFinding: (findingId: string) => void;
   onAccepted: (findingId: string, code: string) => void;
   onDismissed: (findingId: string) => void;
 };
 
+function emptyStateCopy(reviewStatus: ReviewStatus | "SUPERSEDED" | null): {
+  title: string;
+  description: string;
+} {
+  if (reviewStatus === "COMPLETED") {
+    return {
+      title: "No findings",
+      description: "This review didn't find any issues.",
+    };
+  }
+
+  if (reviewStatus === "IN_PROGRESS") {
+    return {
+      title: "Review in progress",
+      description: "Findings will appear when the analysis finishes.",
+    };
+  }
+
+  return {
+    title: "No findings yet",
+    description: "Run a review to analyze this snippet.",
+  };
+}
+
 export function FindingsPanel({
   findings,
+  reviewStatus,
   selectedFindingId,
   onSelectFinding,
   onAccepted,
@@ -34,12 +61,11 @@ export function FindingsPanel({
   }, [selectedFindingId]);
 
   if (findings.length === 0) {
+    const empty = emptyStateCopy(reviewStatus);
     return (
       <div className="rounded-xl border border-dashed border-border bg-surface-muted/60 px-4 py-8 text-center">
-        <p className="text-sm font-medium text-foreground">No findings yet</p>
-        <p className="mt-1 text-sm text-muted">
-          Run a review to analyze this snippet.
-        </p>
+        <p className="text-sm font-medium text-foreground">{empty.title}</p>
+        <p className="mt-1 text-sm text-muted">{empty.description}</p>
       </div>
     );
   }

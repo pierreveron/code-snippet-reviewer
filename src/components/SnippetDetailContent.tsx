@@ -368,6 +368,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
           <aside className="w-full shrink-0 md:w-[22rem] lg:w-[26rem]">
             <FindingsPanel
               findings={findings}
+              reviewStatus={displayReviewStatus}
               selectedFindingId={selectedFindingId}
               onSelectFinding={setSelectedFindingId}
               onAccepted={handleAccepted}
