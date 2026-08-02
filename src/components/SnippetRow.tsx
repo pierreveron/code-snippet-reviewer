@@ -4,19 +4,13 @@ import { useRouter } from "next/navigation";
 import type { KeyboardEvent } from "react";
 
 import { ReviewStatusBadge } from "@/components/ReviewStatusBadge";
+import { formatDateTime } from "@/lib/datetime";
 import { formatLanguageLabel } from "@/lib/languages";
 import type { SnippetListItem } from "@/lib/snippets";
 
 type SnippetRowProps = {
   snippet: SnippetListItem;
 };
-
-function formatCreatedAt(date: Date) {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
 
 export function SnippetRow({ snippet }: SnippetRowProps) {
   const router = useRouter();
@@ -51,7 +45,7 @@ export function SnippetRow({ snippet }: SnippetRowProps) {
         </span>
       </td>
       <td className="px-5 py-3.5 text-muted sm:px-6">
-        {formatCreatedAt(snippet.createdAt)}
+        {formatDateTime(snippet.createdAt)}
       </td>
       <td className="px-5 py-3.5 sm:px-6">
         <ReviewStatusBadge status={snippet.reviewStatus} />

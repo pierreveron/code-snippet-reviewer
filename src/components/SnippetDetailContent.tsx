@@ -8,6 +8,7 @@ import { updateSnippetMetadata } from "@/app/actions/snippets";
 import { CodeEditor } from "@/components/CodeEditor";
 import { LanguageCombobox } from "@/components/LanguageCombobox";
 import { ReviewStatusBadge } from "@/components/ReviewStatusBadge";
+import { formatDateTime } from "@/lib/datetime";
 import {
   formatLanguageLabel,
   normalizeLanguageValue,
@@ -18,13 +19,6 @@ import type { SnippetDetail } from "@/lib/snippets";
 type SnippetDetailContentProps = {
   snippet: SnippetDetail;
 };
-
-function formatCreatedAt(date: Date) {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
 
 export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
   const router = useRouter();
@@ -170,7 +164,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
           <div className="flex flex-wrap items-center gap-2.5">
             <ReviewStatusBadge status={snippet.reviewStatus} />
             <span className="text-sm text-muted">
-              Created {formatCreatedAt(snippet.createdAt)}
+              Created {formatDateTime(snippet.createdAt)}
             </span>
           </div>
         </div>
@@ -185,7 +179,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
             </span>
             <ReviewStatusBadge status={snippet.reviewStatus} />
             <span className="text-sm text-muted">
-              Created {formatCreatedAt(snippet.createdAt)}
+              Created {formatDateTime(snippet.createdAt)}
             </span>
           </div>
         </div>
