@@ -4,6 +4,7 @@ services:
       context: .
       target: builder
     command: npm run db:deploy
+    user: "1001:1001"
     env_file:
       - .env
     environment:
