@@ -63,9 +63,26 @@ export function CreateSnippetModal({ open, onClose }: CreateSnippetModalProps) {
     setErrors(initialErrors);
 
     startTransition(async () => {
-      const result = await createSnippet({ title, language, code });
-      if (result?.ok === false) {
-        setErrors(result.errors);
+      try {
+        const result = await createSnippet({ title, language, code });
+        if (result?.ok === false) {
+          setErrors(result.errors);
+        }
+      } catch (error) {
+        // Successful saves redirect via a thrown NEXT_REDIRECT — rethrow it.
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "digest" in error &&
+          typeof error.digest === "string" &&
+          error.digest.startsWith("NEXT_REDIRECT")
+        ) {
+          throw error;
+        }
+
+        setErrors({
+          form: ["Couldn't save the snippet. Please try again."],
+        });
       }
     });
   }
@@ -155,7 +172,12 @@ export function CreateSnippetModal({ open, onClose }: CreateSnippetModalProps) {
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 border-t border-border bg-surface-muted/50 px-5 py-4 sm:px-6">
+          <div className="flex items-center justify-end gap-3 border-t border-border bg-surface-muted/50 px-5 py-4 sm:px-6">
+            {errors.form?.[0] ? (
+              <p role="alert" className="text-sm text-rose-600">
+                {errors.form[0]}
+              </p>
+            ) : null}
             <button
               type="button"
               onClick={onClose}

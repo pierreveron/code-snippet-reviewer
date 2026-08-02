@@ -37,6 +37,7 @@ export type CreateSnippetFieldErrors = {
   title?: string[];
   language?: string[];
   code?: string[];
+  form?: string[];
 };
 
 export type UpdateSnippetMetadataFieldErrors = {

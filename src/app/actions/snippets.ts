@@ -33,13 +33,23 @@ export async function createSnippet(input: {
     };
   }
 
-  const snippet = await db.snippet.create({
-    data: {
-      title: parsed.data.title,
-      language: parsed.data.language,
-      code: parsed.data.code,
-    },
-  });
+  let snippet;
+  try {
+    snippet = await db.snippet.create({
+      data: {
+        title: parsed.data.title,
+        language: parsed.data.language,
+        code: parsed.data.code,
+      },
+    });
+  } catch {
+    return {
+      ok: false,
+      errors: {
+        form: ["Couldn't save the snippet. Please try again."],
+      },
+    };
+  }
 
   revalidatePath("/");
   redirect(`/snippets/${snippet.id}`);
