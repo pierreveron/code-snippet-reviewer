@@ -3,7 +3,12 @@ import "server-only";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 
-import { ReviewStatus } from "@/generated/prisma/enums";
+import type {
+  FindingCategory,
+  FindingResolution,
+  FindingSeverity,
+  ReviewStatus,
+} from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 
 export type SnippetListItem = {
@@ -14,6 +19,17 @@ export type SnippetListItem = {
   reviewStatus: ReviewStatus | null;
 };
 
+export type SnippetFinding = {
+  id: string;
+  startLine: number;
+  endLine: number | null;
+  severity: FindingSeverity;
+  category: FindingCategory;
+  description: string;
+  suggestedFix: string | null;
+  resolution: FindingResolution;
+};
+
 export type SnippetDetail = {
   id: string;
   title: string;
@@ -22,6 +38,14 @@ export type SnippetDetail = {
   createdAt: Date;
   updatedAt: Date;
   reviewStatus: ReviewStatus | null;
+  reviewErrorMessage: string | null;
+  findings: SnippetFinding[];
+};
+
+const severityOrder: Record<FindingSeverity, number> = {
+  CRITICAL: 0,
+  WARNING: 1,
+  INFO: 2,
 };
 
 export async function listSnippets(): Promise<SnippetListItem[]> {
@@ -63,7 +87,22 @@ export async function getSnippet(id: string): Promise<SnippetDetail> {
       createdAt: true,
       updatedAt: true,
       review: {
-        select: { status: true },
+        select: {
+          status: true,
+          errorMessage: true,
+          findings: {
+            select: {
+              id: true,
+              startLine: true,
+              endLine: true,
+              severity: true,
+              category: true,
+              description: true,
+              suggestedFix: true,
+              resolution: true,
+            },
+          },
+        },
       },
     },
   });
@@ -71,6 +110,13 @@ export async function getSnippet(id: string): Promise<SnippetDetail> {
   if (!snippet) {
     notFound();
   }
+
+  const findings = [...(snippet.review?.findings ?? [])].sort((a, b) => {
+    if (a.startLine !== b.startLine) {
+      return a.startLine - b.startLine;
+    }
+    return severityOrder[a.severity] - severityOrder[b.severity];
+  });
 
   return {
     id: snippet.id,
@@ -80,5 +126,7 @@ export async function getSnippet(id: string): Promise<SnippetDetail> {
     createdAt: snippet.createdAt,
     updatedAt: snippet.updatedAt,
     reviewStatus: snippet.review?.status ?? null,
+    reviewErrorMessage: snippet.review?.errorMessage ?? null,
+    findings,
   };
 }
