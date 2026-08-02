@@ -30,7 +30,11 @@
       "severity": "INFO",
       "category": "STYLE",
       "description": "`unusedFlag` is assigned but never read. Remove it to keep the function focused.",
-      "suggestedFix": "-  const unusedFlag = true;\n+"
+      "suggestionPatch": {
+        "version": 1,
+        "before": ["  const unusedFlag = true;"],
+        "after": []
+      }
     },
     {
       "startLine": 8,
@@ -38,7 +42,24 @@
       "severity": "CRITICAL",
       "category": "SECURITY",
       "description": "Username and password are interpolated into SQL, enabling injection and leaking credentials into query logs. Use parameterized queries and never pass raw passwords into SQL strings.",
-      "suggestedFix": "-  const sql =\n-    \"SELECT id FROM users WHERE name = '\" +\n-    username +\n-    \"' AND password = '\" +\n-    password +\n-    \"'\";\n-  db.query(sql);\n+  db.query(\n+    \"SELECT id FROM users WHERE name = ? AND password_hash = ?\",\n+    [username, hashPassword(password)],\n+  );"
+      "suggestionPatch": {
+        "version": 1,
+        "before": [
+          "  const sql =",
+          "    \"SELECT id FROM users WHERE name = '\" +",
+          "    username +",
+          "    \"' AND password = '\" +",
+          "    password +",
+          "    \"'\";",
+          "  db.query(sql);"
+        ],
+        "after": [
+          "  db.query(",
+          "    \"SELECT id FROM users WHERE name = ? AND password_hash = ?\",",
+          "    [username, hashPassword(password)],",
+          "  );"
+        ]
+      }
     },
     {
       "startLine": 17,
@@ -46,7 +67,11 @@
       "severity": "WARNING",
       "category": "BUG",
       "description": "The loop condition `i <= scores.length` reads one element past the end of the array.",
-      "suggestedFix": "-  for (let i = 0; i <= scores.length; i++) {\n+  for (let i = 0; i < scores.length; i++) {"
+      "suggestionPatch": {
+        "version": 1,
+        "before": ["  for (let i = 0; i <= scores.length; i++) {"],
+        "after": ["  for (let i = 0; i < scores.length; i++) {"]
+      }
     }
   ]
 }

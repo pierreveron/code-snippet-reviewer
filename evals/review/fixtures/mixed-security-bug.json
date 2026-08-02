@@ -24,7 +24,16 @@
       "severity": "CRITICAL",
       "category": "SECURITY",
       "description": "User input is concatenated into a SQL string, which allows SQL injection. Use a parameterized query instead.",
-      "suggestedFix": "-  const query = \"SELECT * FROM users WHERE id = '\" + userId + \"'\";\n-  const user = db.query(query);\n+  const user = db.query(\"SELECT * FROM users WHERE id = ?\", [userId]);"
+      "suggestionPatch": {
+        "version": 1,
+        "before": [
+          "  const query = \"SELECT * FROM users WHERE id = '\" + userId + \"'\";",
+          "  const user = db.query(query);"
+        ],
+        "after": [
+          "  const user = db.query(\"SELECT * FROM users WHERE id = ?\", [userId]);"
+        ]
+      }
     },
     {
       "startLine": 5,
@@ -32,7 +41,11 @@
       "severity": "WARNING",
       "category": "BUG",
       "description": "Loop uses `i <= scores.length`, so the final iteration reads past the end of the array (off-by-one).",
-      "suggestedFix": "-  for (let i = 0; i <= scores.length; i++) {\n+  for (let i = 0; i < scores.length; i++) {"
+      "suggestionPatch": {
+        "version": 1,
+        "before": ["  for (let i = 0; i <= scores.length; i++) {"],
+        "after": ["  for (let i = 0; i < scores.length; i++) {"]
+      }
     }
   ]
 }

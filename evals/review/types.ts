@@ -4,6 +4,7 @@ import {
   findingCategorySchema,
   findingSeveritySchema,
 } from "../../src/lib/review/schema";
+import { suggestionPatchSchema } from "../../src/lib/review/suggestion-patch";
 
 const severityRank = {
   INFO: 0,
@@ -25,7 +26,7 @@ export const seedFindingSchema = z.object({
   severity: findingSeveritySchema,
   category: findingCategorySchema,
   description: z.string().min(1),
-  suggestedFix: z.string().nullable().optional(),
+  suggestionPatch: suggestionPatchSchema.nullable().optional(),
 });
 
 export const fixtureSchema = z.object({

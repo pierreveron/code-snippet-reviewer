@@ -7,6 +7,7 @@ config({ path: ".env" });
 
 import { fixtureSchema, type ReviewFixture } from "../evals/review/types";
 import { createPrismaClient } from "../src/lib/create-prisma-client";
+import { encodeSuggestionPatch } from "../src/lib/review/suggestion-patch";
 
 const FIXTURES_DIR = path.join(process.cwd(), "evals/review/fixtures");
 
@@ -61,7 +62,9 @@ async function main() {
                         severity: finding.severity,
                         category: finding.category,
                         description: finding.description,
-                        suggestedFix: finding.suggestedFix ?? null,
+                        suggestionPatch: finding.suggestionPatch
+                          ? encodeSuggestionPatch(finding.suggestionPatch)
+                          : null,
                       })),
                     },
                   },

@@ -53,8 +53,8 @@ async function main() {
       console.log(
         `[${finding.severity}] ${finding.category} @ L${lines}: ${finding.description}`,
       );
-      if (finding.suggestedFix) {
-        console.log(`  Fix: ${finding.suggestedFix}`);
+      if (finding.suggestionPatch) {
+        console.log(`  Patch: ${finding.suggestionPatch}`);
       }
     }
   } finally {
