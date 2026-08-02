@@ -1,5 +1,6 @@
 import { generateText, Output } from "ai";
 
+import { enableReviewDevtools } from "@/lib/review/devtools";
 import { resolveReviewModel } from "@/lib/review/model";
 import { buildSystemPrompt, buildUserPrompt } from "@/lib/review/prompt";
 import {
@@ -70,8 +71,11 @@ export async function analyzeSnippet(
   input: AnalyzeSnippetInput,
 ): Promise<ReviewFinding[]> {
   const model = resolveReviewModel();
+  const debugReview = process.env.DEBUG_REVIEW === "1";
 
-  const { output } = await generateText({
+  await enableReviewDevtools();
+
+  const result = await generateText({
     model,
     output: Output.object({
       schema: reviewAnalysisSchema,
@@ -80,11 +84,25 @@ export async function analyzeSnippet(
     }),
     instructions: buildSystemPrompt(),
     prompt: buildUserPrompt(input),
+    include: debugReview
+      ? { requestBody: true, responseBody: true }
+      : undefined,
   });
 
-  if (!output) {
+  if (debugReview) {
+    console.log(
+      "[review] provider request body:\n",
+      JSON.stringify(result.request.body, null, 2),
+    );
+    console.log(
+      "[review] provider response body:\n",
+      JSON.stringify(result.response.body, null, 2),
+    );
+  }
+
+  if (!result.output) {
     throw new Error("Model returned no structured review output");
   }
 
-  return sanitizeFindings(output.findings, input.code);
+  return sanitizeFindings(result.output.findings, input.code);
 }

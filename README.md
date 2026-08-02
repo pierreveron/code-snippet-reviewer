@@ -42,6 +42,22 @@ npm run eval:review
 Default model: `REVIEW_MODEL=openai:gpt-5.6-luna` (override in `.env`).
 Switch providers with the same format, e.g. `anthropic:claude-sonnet-4-5`.
 
+### Debugging reviews
+
+Set `DEBUG_REVIEW=1` in `.env` to:
+
+- Log the raw provider request/response bodies to the console
+- Capture AI SDK runs for [DevTools](https://ai-sdk.dev/docs/ai-sdk-core/devtools) (local only)
+
+Then in one terminal run a review or eval, and in another:
+
+```bash
+npm run devtools
+```
+
+Open [http://localhost:4983](http://localhost:4983) to inspect prompts, outputs, and token usage.
+Captures are stored in `.devtools/` (gitignored).
+
 ## Database storage
 
 The local and Docker workflows use separate SQLite databases:
