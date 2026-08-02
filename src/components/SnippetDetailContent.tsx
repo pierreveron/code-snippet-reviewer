@@ -23,8 +23,13 @@ import type { SnippetDetail, SnippetFinding } from "@/lib/snippets";
 
 type SnippetDetailContentProps = {
   snippet: SnippetDetail;
-  /** When true (e.g. after Create and Review), start a review once on mount. */
+  /**
+   * When true (Create and Review → never-reviewed snippet), start a review
+   * once on mount. Must not be set for snippets that already have a review.
+   */
   autoStartReview?: boolean;
+  /** Strip ?review=1 from the URL after mount (even when auto-start is skipped). */
+  clearReviewQuery?: boolean;
 };
 
 /** Survives Strict Mode remounts so Create and Review only kicks off once. */
@@ -37,6 +42,7 @@ function defaultSelectedFindingId(findings: SnippetFinding[]): string | null {
 export function SnippetDetailContent({
   snippet,
   autoStartReview = false,
+  clearReviewQuery = false,
 }: SnippetDetailContentProps) {
   const router = useRouter();
   const initialLanguage = normalizeLanguageValue(snippet.language);
@@ -233,12 +239,23 @@ export function SnippetDetailContent({
   }
 
   useEffect(() => {
-    if (!autoStartReview || autoStartedReviewIds.has(snippet.id)) {
+    if (clearReviewQuery) {
+      router.replace(`/snippets/${snippet.id}`);
+    }
+  }, [clearReviewQuery, router, snippet.id]);
+
+  useEffect(() => {
+    // Defense in depth: never auto-rerun when a review already exists
+    // (e.g. shared ?review=1 on a completed snippet).
+    if (
+      !autoStartReview ||
+      snippet.reviewStatus !== null ||
+      autoStartedReviewIds.has(snippet.id)
+    ) {
       return;
     }
 
     autoStartedReviewIds.add(snippet.id);
-    router.replace(`/snippets/${snippet.id}`);
 
     // New snippets have no findings yet; skip the sync clears used by the
     // manual Run review button so this effect stays lint-clean.
@@ -275,7 +292,7 @@ export function SnippetDetailContent({
         router.refresh();
       }
     });
-  }, [autoStartReview, router, snippet.id, startReviewTransition]);
+  }, [autoStartReview, router, snippet.id, snippet.reviewStatus, startReviewTransition]);
 
   function handleAccepted(result: AcceptedFindingState) {
     setCode(result.code);

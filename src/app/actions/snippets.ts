@@ -23,7 +23,7 @@ export async function createSnippet(input: {
   title: string;
   language: string;
   code: string;
-  /** When true, redirect with ?review=1 so the detail page starts a review. */
+  /** When true, redirect with ?review=1 so the detail page starts a first review. */
   startReview?: boolean;
 }): Promise<CreateSnippetResult> {
   const parsed = createSnippetSchema.safeParse(input);
