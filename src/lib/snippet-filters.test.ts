@@ -7,7 +7,10 @@ import {
   hasActiveSnippetFilters,
   nextSnippetSort,
   parseSnippetFilters,
+  parseSnippetListReturnTo,
   parseSnippetSort,
+  snippetDetailHref,
+  snippetDetailPath,
   withoutSnippetFilterParams,
 } from "@/lib/snippet-filters";
 
@@ -66,6 +69,46 @@ describe("clearSnippetFiltersHref", () => {
     assert.equal(
       clearSnippetFiltersHref({ field: "title", order: "asc" }),
       "/?sort=title&order=asc",
+    );
+  });
+});
+
+describe("snippetDetailHref", () => {
+  it("omits returnTo when the list has no query", () => {
+    assert.equal(snippetDetailHref("abc"), "/snippets/abc");
+    assert.equal(snippetDetailHref("abc", ""), "/snippets/abc");
+  });
+
+  it("embeds the list query as returnTo", () => {
+    assert.equal(
+      snippetDetailHref("abc", "language=go&sort=title&order=asc"),
+      `/snippets/abc?returnTo=${encodeURIComponent("/?language=go&sort=title&order=asc")}`,
+    );
+  });
+});
+
+describe("parseSnippetListReturnTo", () => {
+  it("accepts the home path with a query", () => {
+    assert.equal(
+      parseSnippetListReturnTo("/?language=go&sort=title&order=asc"),
+      "/?language=go&sort=title&order=asc",
+    );
+  });
+
+  it("rejects open redirects and non-home paths", () => {
+    assert.equal(parseSnippetListReturnTo("//evil.example"), "/");
+    assert.equal(parseSnippetListReturnTo("https://evil.example"), "/");
+    assert.equal(parseSnippetListReturnTo("/snippets/abc"), "/");
+    assert.equal(parseSnippetListReturnTo(undefined), "/");
+  });
+});
+
+describe("snippetDetailPath", () => {
+  it("keeps returnTo when present", () => {
+    assert.equal(snippetDetailPath("abc"), "/snippets/abc");
+    assert.equal(
+      snippetDetailPath("abc", "/?sort=title&order=asc"),
+      `/snippets/abc?returnTo=${encodeURIComponent("/?sort=title&order=asc")}`,
     );
   });
 });

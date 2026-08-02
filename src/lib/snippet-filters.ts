@@ -138,6 +138,64 @@ export function clearSnippetFiltersHref(sort: SnippetListSort): string {
   return `/?${params.toString()}`;
 }
 
+/**
+ * Detail URL that remembers the list query so “Back to snippets” can restore
+ * filters/sort. Omits returnTo when the list has no query.
+ */
+export function snippetDetailHref(
+  id: string,
+  listSearchParams?: string | URLSearchParams,
+): string {
+  const listQuery =
+    typeof listSearchParams === "string"
+      ? listSearchParams
+      : (listSearchParams?.toString() ?? "");
+  if (!listQuery) {
+    return `/snippets/${id}`;
+  }
+
+  const params = new URLSearchParams({
+    returnTo: `/?${listQuery}`,
+  });
+  return `/snippets/${id}?${params.toString()}`;
+}
+
+/**
+ * Safe list href from a detail-page returnTo param. Only the home path with
+ * an optional query is accepted (blocks open redirects).
+ */
+export function parseSnippetListReturnTo(
+  returnTo: string | string[] | undefined,
+): string {
+  const value = firstParam(returnTo);
+  if (!value || value === "/") {
+    return "/";
+  }
+
+  try {
+    const url = new URL(value, "http://local.invalid");
+    if (url.origin !== "http://local.invalid" || url.pathname !== "/") {
+      return "/";
+    }
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return "/";
+  }
+}
+
+/** Detail path that keeps returnTo after stripping one-shot flags like review. */
+export function snippetDetailPath(
+  id: string,
+  listReturnTo: string = "/",
+): string {
+  if (listReturnTo === "/") {
+    return `/snippets/${id}`;
+  }
+
+  const params = new URLSearchParams({ returnTo: listReturnTo });
+  return `/snippets/${id}?${params.toString()}`;
+}
+
 export function nextSnippetSort(
   current: SnippetListSort,
   field: SnippetSortField,

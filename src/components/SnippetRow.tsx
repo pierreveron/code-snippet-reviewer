@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { KeyboardEvent } from "react";
 
 import { ReviewStatusBadge } from "@/components/ReviewStatusBadge";
 import { formatDateTime } from "@/lib/datetime";
 import { formatLanguageLabel } from "@/lib/languages";
+import { snippetDetailHref } from "@/lib/snippet-filters";
 import type { SnippetListItem } from "@/lib/snippets";
 
 type SnippetRowProps = {
@@ -15,7 +16,8 @@ type SnippetRowProps = {
 
 export function SnippetRow({ snippet }: SnippetRowProps) {
   const router = useRouter();
-  const href = `/snippets/${snippet.id}`;
+  const searchParams = useSearchParams();
+  const href = snippetDetailHref(snippet.id, searchParams);
 
   function navigate() {
     router.push(href);

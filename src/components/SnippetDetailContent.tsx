@@ -18,6 +18,7 @@ import {
   formatLanguageLabel,
   normalizeLanguageValue,
 } from "@/lib/languages";
+import { snippetDetailPath } from "@/lib/snippet-filters";
 import type { UpdateSnippetFieldErrors } from "@/lib/snippet-schema";
 import type { SnippetDetail, SnippetFinding } from "@/lib/snippets";
 
@@ -30,6 +31,8 @@ type SnippetDetailContentProps = {
   autoStartReview?: boolean;
   /** Strip ?review=1 from the URL after mount (even when auto-start is skipped). */
   clearReviewQuery?: boolean;
+  /** List URL (filters/sort) for the back link; defaults to `/`. */
+  listReturnTo?: string;
 };
 
 /** Survives Strict Mode remounts so Create and Review only kicks off once. */
@@ -43,6 +46,7 @@ export function SnippetDetailContent({
   snippet,
   autoStartReview = false,
   clearReviewQuery = false,
+  listReturnTo = "/",
 }: SnippetDetailContentProps) {
   const router = useRouter();
   const initialLanguage = normalizeLanguageValue(snippet.language);
@@ -240,9 +244,10 @@ export function SnippetDetailContent({
 
   useEffect(() => {
     if (clearReviewQuery) {
-      router.replace(`/snippets/${snippet.id}`);
+      // Keep returnTo so Back still restores list filters/sort.
+      router.replace(snippetDetailPath(snippet.id, listReturnTo));
     }
-  }, [clearReviewQuery, router, snippet.id]);
+  }, [clearReviewQuery, listReturnTo, router, snippet.id]);
 
   useEffect(() => {
     // Defense in depth: never auto-rerun when a review already exists
@@ -335,7 +340,7 @@ export function SnippetDetailContent({
     <>
       <div className="mb-6 flex flex-row flex-wrap items-center justify-between gap-3">
         <Link
-          href="/"
+          href={listReturnTo}
           className="text-sm font-medium text-muted transition-colors hover:text-foreground"
         >
           ← Back to snippets
