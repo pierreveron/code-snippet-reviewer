@@ -1,3 +1,7 @@
+"use client";
+
+import { useId, useState } from "react";
+
 import { alignReplacementIndent } from "@/lib/review/apply-fix";
 import { parseSuggestionPatch } from "@/lib/review/suggestion-patch";
 import { diffLinePair, type DiffSegment } from "@/lib/inline-diff";
@@ -75,6 +79,7 @@ export function buildSuggestionDiff(suggestedFix: string): DiffRow[] {
 
 type SuggestedChangeDiffProps = {
   suggestedFix: string;
+  defaultOpen?: boolean;
 };
 
 function DiffSegments({
@@ -103,46 +108,87 @@ function DiffSegments({
   );
 }
 
-export function SuggestedChangeDiff({ suggestedFix }: SuggestedChangeDiffProps) {
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden
+      className={[
+        "h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform",
+        open ? "rotate-90" : "",
+      ].join(" ")}
+    >
+      <path
+        fill="currentColor"
+        d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"
+      />
+    </svg>
+  );
+}
+
+export function SuggestedChangeDiff({
+  suggestedFix,
+  defaultOpen = true,
+}: SuggestedChangeDiffProps) {
+  const [open, setOpen] = useState(defaultOpen);
   const rows = buildSuggestionDiff(suggestedFix);
+  const panelId = useId();
 
   return (
     <div className="mt-2 overflow-hidden rounded-md border border-border bg-[#f6f8fa]">
-      <div className="border-b border-border bg-[#f6f8fa] px-2.5 py-1 text-[11px] font-medium text-slate-600">
-        Suggested change
-      </div>
-      <div
-        className="overflow-x-auto font-mono text-[11px] leading-[18px]"
-        role="table"
-        aria-label="Suggested change diff"
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+        className={[
+          "flex w-full items-center gap-1.5 bg-[#f6f8fa] px-2.5 py-1.5 text-left text-[11px] font-medium text-slate-600",
+          "outline-none transition-colors hover:bg-slate-100/80 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/40",
+          open ? "border-b border-border" : "",
+        ].join(" ")}
       >
-        {rows.map((row, index) => {
-          const isRemove = row.type === "remove";
-          return (
-            <div
-              key={`${row.type}-${index}`}
-              role="row"
-              className={[
-                "flex whitespace-pre",
-                isRemove
-                  ? "bg-[#ffebe9] text-[#82071e]"
-                  : "bg-[#dafbe1] text-[#116329]",
-              ].join(" ")}
-            >
-              <span
+        <ChevronIcon open={open} />
+        Suggested change
+      </button>
+
+      {open ? (
+        <div
+          id={panelId}
+          className="overflow-x-auto font-mono text-[11px] leading-[18px]"
+          role="table"
+          aria-label="Suggested change diff"
+        >
+          {rows.map((row, index) => {
+            const isRemove = row.type === "remove";
+            return (
+              <div
+                key={`${row.type}-${index}`}
+                role="row"
                 className={[
-                  "w-5 shrink-0 select-none text-center",
-                  isRemove ? "text-[#cf222e]" : "text-[#1a7f37]",
+                  "flex whitespace-pre",
+                  isRemove
+                    ? "bg-[#ffebe9] text-[#82071e]"
+                    : "bg-[#dafbe1] text-[#116329]",
                 ].join(" ")}
-                aria-hidden
               >
-                {isRemove ? "-" : "+"}
-              </span>
-              <DiffSegments segments={row.segments} variant={row.type} />
-            </div>
-          );
-        })}
-      </div>
+                <span
+                  className={[
+                    "w-5 shrink-0 select-none text-center",
+                    isRemove ? "text-[#cf222e]" : "text-[#1a7f37]",
+                  ].join(" ")}
+                  aria-hidden
+                >
+                  {isRemove ? "-" : "+"}
+                </span>
+                <DiffSegments segments={row.segments} variant={row.type} />
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
