@@ -65,7 +65,7 @@ export function SnippetList({
   return (
     <div>
       <SnippetFilters />
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow)]">
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-surface-muted text-xs font-medium tracking-wide">
             <tr>
