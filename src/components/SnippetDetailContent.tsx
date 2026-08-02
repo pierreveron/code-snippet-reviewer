@@ -331,7 +331,7 @@ export function SnippetDetailContent({
                 type="button"
                 onClick={cancelEditing}
                 disabled={isPending}
-                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -339,7 +339,7 @@ export function SnippetDetailContent({
                 type="button"
                 onClick={handleSave}
                 disabled={!isDirty || isPending}
-                className="inline-flex h-8 items-center justify-center rounded-md bg-accent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isPending ? "Saving…" : "Save changes"}
               </button>
@@ -350,7 +350,7 @@ export function SnippetDetailContent({
                 type="button"
                 onClick={startEditing}
                 disabled={isReviewPending || isFindingActionPending}
-                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
               >
                 Edit
               </button>
@@ -358,7 +358,7 @@ export function SnippetDetailContent({
                 type="button"
                 onClick={handleRunReview}
                 disabled={isReviewPending || isFindingActionPending}
-                className="inline-flex h-8 items-center justify-center rounded-md bg-accent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isReviewPending ? "Reviewing…" : "Run review"}
               </button>
