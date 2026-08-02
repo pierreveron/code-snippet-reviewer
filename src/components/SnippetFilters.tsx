@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useTransition } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { FilterSelect } from "@/components/FilterSelect";
 import { LANGUAGES } from "@/lib/languages";
@@ -14,7 +14,15 @@ export function SnippetFilters() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  // Compose rapid filter changes against the latest in-flight query, not the
+  // still-stale URL from useSearchParams.
+  const pendingQueryRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (pendingQueryRef.current === searchParams.toString()) {
+      pendingQueryRef.current = null;
+    }
+  }, [searchParams]);
 
   const language = searchParams.get("language") ?? "";
   const status = searchParams.get("status") ?? "";
@@ -42,8 +50,20 @@ export function SnippetFilters() {
     [],
   );
 
+  function latestParams() {
+    return new URLSearchParams(
+      pendingQueryRef.current ?? searchParams.toString(),
+    );
+  }
+
+  function replaceParams(params: URLSearchParams) {
+    const query = params.toString();
+    pendingQueryRef.current = query;
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }
+
   function updateParam(key: "language" | "status", value: string) {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = latestParams();
 
     if (value) {
       params.set(key, value);
@@ -51,28 +71,15 @@ export function SnippetFilters() {
       params.delete(key);
     }
 
-    const query = params.toString();
-    startTransition(() => {
-      router.replace(query ? `${pathname}?${query}` : pathname);
-    });
+    replaceParams(params);
   }
 
   function clearFilters() {
-    const params = withoutSnippetFilterParams(searchParams);
-    const query = params.toString();
-
-    startTransition(() => {
-      router.replace(query ? `${pathname}?${query}` : pathname);
-    });
+    replaceParams(withoutSnippetFilterParams(latestParams()));
   }
 
   return (
-    <div
-      className={[
-        "mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end",
-        isPending ? "opacity-70" : "",
-      ].join(" ")}
-    >
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
       <FilterSelect
         label="Language"
         aria-label="Filter by language"
