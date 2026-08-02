@@ -28,6 +28,27 @@ Create a migration after changing `prisma/schema.prisma`:
 npm run db:migrate -- --name describe_your_change
 ```
 
+## Database storage
+
+The local and Docker workflows use separate SQLite databases:
+
+- Local development uses `data/dev.db` in the project directory.
+- Docker Compose uses `/app/data/dev.db`, stored in the Docker-managed
+  `snippet-data` volume.
+
+These databases are not synchronized. Data created locally will not appear when
+running through Docker, and Docker data will not appear in the local database.
+Normally, only one workflow is used at a time.
+
+The Docker build also sets `DATABASE_URL=file:/tmp/build.db`. This only gives
+Prisma the configuration it requires while generating the client and building
+the application; it does not create a persistent third database.
+
+Both the migration service and application access the Docker database as
+UID/GID `1001`, which belongs to the non-root `nextjs` user in the application
+image. Using the same owner keeps the SQLite file writable by the application
+without running it as root.
+
 ## Project layout
 
 - `src/app` — Next.js App Router (UI + API routes)
