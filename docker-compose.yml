@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:/app/data/dev.db
+    volumes:
+      - snippet-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  snippet-data:
