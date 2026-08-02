@@ -261,7 +261,7 @@ export function CreateSnippetModal({ open, onClose }: CreateSnippetModalProps) {
         aria-labelledby={titleId}
         className={[
           "relative z-10 flex max-h-[min(90vh,840px)] w-full max-w-3xl flex-col rounded-2xl border border-border bg-surface shadow-[var(--shadow)]",
-          // Allow the create-options menu to paint below the footer.
+          // Allow the create-options menu to paint above the footer.
           menuOpen ? "overflow-visible" : "overflow-hidden",
         ].join(" ")}
       >
@@ -380,7 +380,7 @@ export function CreateSnippetModal({ open, onClose }: CreateSnippetModalProps) {
                   role="menu"
                   aria-label="Create options"
                   onKeyDown={handleMenuKeyDown}
-                  className="absolute top-full right-0 z-20 mt-1.5 min-w-50 overflow-hidden rounded-lg border border-border bg-surface shadow-(--shadow)"
+                  className="absolute right-0 bottom-full z-20 mb-1.5 min-w-50 overflow-hidden rounded-lg border border-border bg-surface shadow-(--shadow)"
                 >
                   {CREATE_MODES.map((mode, index) => {
                     const isActive = index === activeMenuIndex;
