@@ -30,6 +30,32 @@ describe("alignReplacementLines", () => {
     ]);
   });
 
+  it("preserves a closing brace dedented before the first replacement line", () => {
+    const aligned = alignReplacementLines(
+      ["    if (ready) {", "      return true;", "    }"],
+      ["  if (ready) {", "    return false;", "}"],
+    );
+
+    assert.deepEqual(aligned, [
+      "    if (ready) {",
+      "      return false;",
+      "  }",
+    ]);
+  });
+
+  it("preserves a Python dedent before the first replacement line", () => {
+    const aligned = alignReplacementLines(
+      ["    if ready:", "        return current", "    return fallback"],
+      ["        if ready:", "            return updated", "    return fallback"],
+    );
+
+    assert.deepEqual(aligned, [
+      "    if ready:",
+      "        return updated",
+      "return fallback",
+    ]);
+  });
+
   it("preserves leading and trailing blank replacement lines", () => {
     assert.deepEqual(
       alignReplacementLines(["  old();"], ["", "new();", ""]),

@@ -47,10 +47,16 @@ export function alignReplacementLines(
 
     const lineIndent = leadingWhitespace(line);
     const content = line.slice(lineIndent.length);
-    const relativeIndent =
-      lineIndent.length >= baseLen ? lineIndent.slice(baseLen) : "";
+    const relativeIndentLength = lineIndent.length - baseLen;
+    const rebasedIndent =
+      relativeIndentLength >= 0
+        ? `${originalIndent}${lineIndent.slice(baseLen)}`
+        : originalIndent.slice(
+            0,
+            Math.max(0, originalIndent.length + relativeIndentLength),
+          );
 
-    return `${originalIndent}${relativeIndent}${content}`;
+    return `${rebasedIndent}${content}`;
   });
 }
 
