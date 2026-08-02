@@ -12,7 +12,11 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+ENV DATABASE_URL=file:/tmp/build.db
+RUN mkdir -p /app/data \
+  && chown 1001:1001 /app/data \
+  && npm run db:generate \
+  && npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production

@@ -13,6 +13,7 @@ README.md
 coverage
 .vscode
 .idea
+data
 *.md
 AGENTS.md
 CLAUDE.md

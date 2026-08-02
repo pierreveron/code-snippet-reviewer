@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum ReviewStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum FindingSeverity {
+  CRITICAL
+  WARNING
+  INFO
+}
+
+enum FindingCategory {
+  BUG
+  SECURITY
+  PERFORMANCE
+  STYLE
+  OTHER
+}
+
+enum FindingResolution {
+  OPEN
+  ACCEPTED
+  DISMISSED
+}
+
+model Snippet {
+  id        String   @id @default(cuid())
+  title     String
+  language  String
+  code      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  review    Review?
+
+  @@index([language])
+  @@index([createdAt])
+}
+
+model Review {
+  id           String       @id @default(cuid())
+  snippetId    String       @unique
+  status       ReviewStatus @default(IN_PROGRESS)
+  errorMessage String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  completedAt  DateTime?
+  snippet      Snippet      @relation(fields: [snippetId], references: [id], onDelete: Cascade)
+  findings     Finding[]
+
+  @@index([status])
+}
+
+model Finding {
+  id           String            @id @default(cuid())
+  reviewId     String
+  startLine    Int
+  endLine      Int?
+  severity     FindingSeverity
+  category     FindingCategory
+  description  String
+  suggestedFix String?
+  resolution   FindingResolution @default(OPEN)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  review       Review            @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, resolution])
+}
