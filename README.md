@@ -237,7 +237,99 @@ Findings: open → accepted, dismissed, or stale.
 - Review bots were extremely useful — they catch edge cases the model often
   misses while planning or implementing (still filter signal from noise).
 
-## Appendix: CLI, seeding, and debugging
+## Appendix
+
+### Database schema
+
+SQLite via Prisma. One snippet has at most one review; a review has many
+findings.
+
+```mermaid
+erDiagram
+  Snippet ||--o| Review : has
+  Review ||--o{ Finding : contains
+
+  Snippet {
+    string id PK
+    string title
+    string language
+    string code
+    int contentVersion
+    datetime createdAt
+    datetime updatedAt
+  }
+
+  Review {
+    string id PK
+    string snippetId FK
+    string runToken
+    int sourceVersion
+    enum status
+    string errorMessage
+    datetime createdAt
+    datetime updatedAt
+    datetime completedAt
+  }
+
+  Finding {
+    string id PK
+    string reviewId FK
+    int startLine
+    int endLine
+    enum severity
+    enum category
+    string description
+    string suggestionPatch
+    enum resolution
+    datetime createdAt
+    datetime updatedAt
+  }
+```
+
+Enums:
+
+- `Review.status` — `IN_PROGRESS`, `COMPLETED`, `FAILED`
+- `Finding.severity` — `CRITICAL`, `WARNING`, `INFO`
+- `Finding.category` — `BUG`, `SECURITY`, `PERFORMANCE`, `STYLE`, `OTHER`
+- `Finding.resolution` — `OPEN`, `ACCEPTED`, `DISMISSED`, `STALE`
+
+**`Snippet.contentVersion`** — integer that bumps whenever the snippet’s code
+(or language) changes, and again when a suggestion is applied. Saves and applies
+send the version the browser thinks is current; if it doesn’t match the DB, the
+write is rejected (someone else already changed the code).
+
+**`Review.sourceVersion`** — which `contentVersion` this review’s findings
+currently describe. Set when the review starts (the code the LLM analyzed).
+Before an apply is allowed, it must still equal the snippet’s
+`contentVersion`; after a successful apply, both bump together so remaining
+non-overlapping findings stay usable. If the user edits the code manually (or
+the LLM finishes against an outdated snapshot), the versions diverge and
+suggestions are treated as stale until a new review.
+
+**`runToken`** — opaque id for the active review run. Only the run that still
+owns the token may write `COMPLETED` / `FAILED`, so a slower older request can’t
+overwrite a newer one.
+
+`suggestionPatch` is a JSON string (or `null` when there is no safe automatic
+fix). Example:
+
+```json
+{
+  "version": 1,
+  "before": ["  return a - b;"],
+  "after": ["  return a + b;"]
+}
+```
+
+`before` is the exact source lines at review time; `after` is the model’s
+replacement (`[]` deletes the range, `[""]` leaves one blank line). Apply
+checks that `before` still matches before writing `after`.
+
+`version` is the **patch format** version (currently always `1`), not the
+snippet’s `contentVersion`. It lets us evolve the JSON shape later and reject
+or migrate unknown formats safely.
+
+### CLI, seeding, and debugging
 
 Optional tools for local development. Not required to exercise the app through
 the UI.
@@ -246,8 +338,6 @@ Local `npm run dev` and Docker Compose use separate SQLite files (project
 `data/dev.db` vs the Compose `snippet-data` volume). They are not synced. Compose
 also runs a one-shot `db-init` to `chown` the volume for the non-root app user
 so SQLite is writable inside the container.
-
-### Review CLI
 
 ```bash
 # Review a snippet already in the local database
