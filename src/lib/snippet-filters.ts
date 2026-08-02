@@ -112,6 +112,32 @@ export function hasActiveSnippetFilters(filters: SnippetListFilters): boolean {
   return Boolean(filters.language || filters.status);
 }
 
+/** Removes language/status while keeping sort/order and any other params. */
+export function withoutSnippetFilterParams(
+  searchParams: string | URLSearchParams,
+): URLSearchParams {
+  const params = new URLSearchParams(searchParams.toString());
+  params.delete("language");
+  params.delete("status");
+  return params;
+}
+
+/** Home path with optional non-default sort; never includes language/status. */
+export function clearSnippetFiltersHref(sort: SnippetListSort): string {
+  if (
+    sort.field === DEFAULT_SNIPPET_SORT.field &&
+    sort.order === DEFAULT_SNIPPET_SORT.order
+  ) {
+    return "/";
+  }
+
+  const params = new URLSearchParams({
+    sort: sort.field,
+    order: sort.order,
+  });
+  return `/?${params.toString()}`;
+}
+
 export function nextSnippetSort(
   current: SnippetListSort,
   field: SnippetSortField,

@@ -4,7 +4,10 @@ import { NewSnippetButton } from "@/components/NewSnippetButton";
 import { SnippetFilters } from "@/components/SnippetFilters";
 import { SnippetRow } from "@/components/SnippetRow";
 import { SortableColumnHeader } from "@/components/SortableColumnHeader";
-import type { SnippetListSort } from "@/lib/snippet-filters";
+import {
+  clearSnippetFiltersHref,
+  type SnippetListSort,
+} from "@/lib/snippet-filters";
 import type { SnippetListItem } from "@/lib/snippets";
 
 type SnippetListProps = {
@@ -34,7 +37,7 @@ export function SnippetList({
             </p>
             <div className="mt-6 flex justify-center">
               <Link
-                href="/"
+                href={clearSnippetFiltersHref(sort)}
                 className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
               >
                 Clear filters

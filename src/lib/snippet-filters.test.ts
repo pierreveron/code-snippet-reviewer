@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  clearSnippetFiltersHref,
   DEFAULT_SNIPPET_SORT,
   hasActiveSnippetFilters,
   nextSnippetSort,
   parseSnippetFilters,
   parseSnippetSort,
+  withoutSnippetFilterParams,
 } from "@/lib/snippet-filters";
 
 describe("parseSnippetFilters", () => {
@@ -40,6 +42,31 @@ describe("hasActiveSnippetFilters", () => {
     assert.equal(hasActiveSnippetFilters({ language: "go" }), true);
     assert.equal(hasActiveSnippetFilters({ status: "not_reviewed" }), true);
     assert.equal(hasActiveSnippetFilters({}), false);
+  });
+});
+
+describe("withoutSnippetFilterParams", () => {
+  it("removes language and status but keeps sort and order", () => {
+    const params = withoutSnippetFilterParams(
+      "language=go&status=reviewed&sort=title&order=asc",
+    );
+    assert.equal(params.get("language"), null);
+    assert.equal(params.get("status"), null);
+    assert.equal(params.get("sort"), "title");
+    assert.equal(params.get("order"), "asc");
+  });
+});
+
+describe("clearSnippetFiltersHref", () => {
+  it("returns / for the default sort", () => {
+    assert.equal(clearSnippetFiltersHref(DEFAULT_SNIPPET_SORT), "/");
+  });
+
+  it("preserves non-default sort and order", () => {
+    assert.equal(
+      clearSnippetFiltersHref({ field: "title", order: "asc" }),
+      "/?sort=title&order=asc",
+    );
   });
 });
 

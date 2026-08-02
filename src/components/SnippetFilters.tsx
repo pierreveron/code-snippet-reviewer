@@ -5,7 +5,10 @@ import { useMemo, useTransition } from "react";
 
 import { FilterSelect } from "@/components/FilterSelect";
 import { LANGUAGES } from "@/lib/languages";
-import { REVIEW_STATUS_FILTERS } from "@/lib/snippet-filters";
+import {
+  REVIEW_STATUS_FILTERS,
+  withoutSnippetFilterParams,
+} from "@/lib/snippet-filters";
 
 export function SnippetFilters() {
   const router = useRouter();
@@ -55,9 +58,7 @@ export function SnippetFilters() {
   }
 
   function clearFilters() {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("language");
-    params.delete("status");
+    const params = withoutSnippetFilterParams(searchParams);
     const query = params.toString();
 
     startTransition(() => {
