@@ -34,7 +34,7 @@ export default function RootLayout({
             <Link href="/" className="group flex items-center gap-2.5">
               <span
                 aria-hidden
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white shadow-sm"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-r from-[#6D2A78] via-[#A43EB5] to-[#9379F9] text-sm font-bold text-white shadow-sm"
               >
                 {"</>"}
               </span>

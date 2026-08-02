@@ -2,15 +2,15 @@
 
 :root {
   color-scheme: light;
-  --background: #f3f5f8;
-  --foreground: #142033;
+  --background: #fafafa;
+  --foreground: #1e1e1e;
   --surface: #ffffff;
   --surface-muted: #f8fafc;
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
   --muted: #64748b;
-  --accent: #0f766e;
-  --accent-soft: #ccfbf1;
+  --accent: #6d2a78;
+  --accent-soft: #f3e8f5;
   --shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 8px 24px rgb(15 23 42 / 6%);
 }
 
@@ -29,7 +29,12 @@
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image: radial-gradient(
+    ellipse 80% 50% at 50% -10%,
+    rgb(109 42 120 / 10%),
+    transparent 55%
+  );
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, sans-serif;
   min-height: 100%;

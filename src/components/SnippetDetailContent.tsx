@@ -437,7 +437,7 @@ export function SnippetDetailContent({
       ) : null}
 
       {isReviewPending ? (
-        <div className="mb-6 rounded-lg border border-teal-200 bg-accent-soft/60 px-4 py-3 text-sm text-accent">
+        <div className="mb-6 rounded-lg border border-accent/25 bg-accent-soft/60 px-4 py-3 text-sm text-accent">
           Review in progress — analyzing the snippet with the configured model…
         </div>
       ) : null}
