@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import { updateSnippetMetadata } from "@/app/actions/snippets";
+import { updateSnippet } from "@/app/actions/snippets";
 import { CodeEditor } from "@/components/CodeEditor";
 import { LanguageCombobox } from "@/components/LanguageCombobox";
 import { ReviewStatusBadge } from "@/components/ReviewStatusBadge";
@@ -13,7 +13,7 @@ import {
   formatLanguageLabel,
   normalizeLanguageValue,
 } from "@/lib/languages";
-import type { UpdateSnippetMetadataFieldErrors } from "@/lib/snippet-schema";
+import type { UpdateSnippetFieldErrors } from "@/lib/snippet-schema";
 import type { SnippetDetail } from "@/lib/snippets";
 
 type SnippetDetailContentProps = {
@@ -26,29 +26,37 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(snippet.title);
   const [language, setLanguage] = useState(initialLanguage);
+  const [code, setCode] = useState(snippet.code);
   const [savedTitle, setSavedTitle] = useState(snippet.title);
   const [savedLanguage, setSavedLanguage] = useState(initialLanguage);
-  const [errors, setErrors] = useState<UpdateSnippetMetadataFieldErrors>({});
+  const [savedCode, setSavedCode] = useState(snippet.code);
+  const [errors, setErrors] = useState<UpdateSnippetFieldErrors>({});
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const nextLanguage = normalizeLanguageValue(snippet.language);
     setTitle(snippet.title);
     setLanguage(nextLanguage);
+    setCode(snippet.code);
     setSavedTitle(snippet.title);
     setSavedLanguage(nextLanguage);
+    setSavedCode(snippet.code);
     setErrors({});
     setIsEditing(false);
-  }, [snippet.id, snippet.title, snippet.language]);
+  }, [snippet.id, snippet.title, snippet.language, snippet.code]);
 
   const isDirty = useMemo(
-    () => title.trim() !== savedTitle || language !== savedLanguage,
-    [title, language, savedTitle, savedLanguage],
+    () =>
+      title.trim() !== savedTitle ||
+      language !== savedLanguage ||
+      code !== savedCode,
+    [title, language, code, savedTitle, savedLanguage, savedCode],
   );
 
   function startEditing() {
     setTitle(savedTitle);
     setLanguage(savedLanguage);
+    setCode(savedCode);
     setErrors({});
     setIsEditing(true);
   }
@@ -56,6 +64,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
   function cancelEditing() {
     setTitle(savedTitle);
     setLanguage(savedLanguage);
+    setCode(savedCode);
     setErrors({});
     setIsEditing(false);
   }
@@ -65,10 +74,11 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
 
     startTransition(async () => {
       const nextTitle = title.trim();
-      const result = await updateSnippetMetadata({
+      const result = await updateSnippet({
         id: snippet.id,
         title: nextTitle,
         language,
+        code,
       });
 
       if (!result.ok) {
@@ -79,6 +89,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
       setTitle(nextTitle);
       setSavedTitle(nextTitle);
       setSavedLanguage(language);
+      setSavedCode(code);
       setIsEditing(false);
       router.refresh();
     });
@@ -185,12 +196,18 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
         </div>
       )}
 
-      <CodeEditor
-        value={snippet.code}
-        language={isEditing ? language : savedLanguage}
-        readOnly
-        height="520px"
-      />
+      <div>
+        <CodeEditor
+          value={isEditing ? code : savedCode}
+          language={isEditing ? language : savedLanguage}
+          readOnly={!isEditing}
+          height="520px"
+          onChange={isEditing ? setCode : undefined}
+        />
+        {errors.code?.[0] ? (
+          <p className="mt-1.5 text-xs text-rose-600">{errors.code[0]}</p>
+        ) : null}
+      </div>
     </>
   );
 }

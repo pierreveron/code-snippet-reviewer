@@ -17,18 +17,21 @@ const languageSchema = z.enum(languageValues, {
   error: "Select a language from the list",
 });
 
+const codeSchema = z
+  .string()
+  .min(1, "Code is required")
+  .max(100_000, "Code must be at most 100,000 characters");
+
 export const createSnippetSchema = z.object({
   title: titleSchema,
   language: languageSchema,
-  code: z
-    .string()
-    .min(1, "Code is required")
-    .max(100_000, "Code must be at most 100,000 characters"),
+  code: codeSchema,
 });
 
-export const updateSnippetMetadataSchema = z.object({
+export const updateSnippetSchema = z.object({
   title: titleSchema,
   language: languageSchema,
+  code: codeSchema,
 });
 
 export type CreateSnippetInput = z.infer<typeof createSnippetSchema>;
@@ -40,7 +43,8 @@ export type CreateSnippetFieldErrors = {
   form?: string[];
 };
 
-export type UpdateSnippetMetadataFieldErrors = {
+export type UpdateSnippetFieldErrors = {
   title?: string[];
   language?: string[];
+  code?: string[];
 };

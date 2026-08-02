@@ -6,18 +6,18 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import {
   createSnippetSchema,
-  updateSnippetMetadataSchema,
+  updateSnippetSchema,
   type CreateSnippetFieldErrors,
-  type UpdateSnippetMetadataFieldErrors,
+  type UpdateSnippetFieldErrors,
 } from "@/lib/snippet-schema";
 
 export type CreateSnippetResult =
   | { ok: true }
   | { ok: false; errors: CreateSnippetFieldErrors };
 
-export type UpdateSnippetMetadataResult =
+export type UpdateSnippetResult =
   | { ok: true }
-  | { ok: false; errors: UpdateSnippetMetadataFieldErrors };
+  | { ok: false; errors: UpdateSnippetFieldErrors };
 
 export async function createSnippet(input: {
   title: string;
@@ -55,14 +55,16 @@ export async function createSnippet(input: {
   redirect(`/snippets/${snippet.id}`);
 }
 
-export async function updateSnippetMetadata(input: {
+export async function updateSnippet(input: {
   id: string;
   title: string;
   language: string;
-}): Promise<UpdateSnippetMetadataResult> {
-  const parsed = updateSnippetMetadataSchema.safeParse({
+  code: string;
+}): Promise<UpdateSnippetResult> {
+  const parsed = updateSnippetSchema.safeParse({
     title: input.title,
     language: input.language,
+    code: input.code,
   });
 
   if (!parsed.success) {
@@ -89,6 +91,7 @@ export async function updateSnippetMetadata(input: {
     data: {
       title: parsed.data.title,
       language: parsed.data.language,
+      code: parsed.data.code,
     },
   });
 
