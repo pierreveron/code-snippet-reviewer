@@ -417,10 +417,10 @@ export function SnippetDetailContent({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <ReviewStatusBadge status={displayReviewStatus} />
             <span className="text-sm text-muted">
               Created {formatDateTime(snippet.createdAt)}
             </span>
+            <ReviewStatusBadge status={displayReviewStatus} />
           </div>
         </div>
       ) : (
@@ -432,10 +432,10 @@ export function SnippetDetailContent({
             <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-medium text-slate-700">
               {formatLanguageLabel(savedLanguage)}
             </span>
-            <ReviewStatusBadge status={displayReviewStatus} />
             <span className="text-sm text-muted">
               Created {formatDateTime(snippet.createdAt)}
             </span>
+            <ReviewStatusBadge status={displayReviewStatus} />
           </div>
         </div>
       )}
