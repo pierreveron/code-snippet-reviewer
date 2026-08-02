@@ -11,7 +11,11 @@ export type SuggestionPatch = {
  *   -  return a - b;
  *   +  return a + b;
  *
- * Also accepts a plain replacement (no +/- prefixes) as after-only.
+ * Marker mode requires every line to be marked and both `-` and `+` sides to
+ * be present. Otherwise a plain replacement that begins with `+`/`-`
+ * (e.g. `++i`) would be mis-parsed.
+ *
+ * Also accepts a plain replacement (no hunk) as after-only.
  */
 export function parseSuggestionPatch(patch: string): SuggestionPatch {
   const normalized = patch.replace(/^\n+/, "").replace(/\s+$/, "");
@@ -20,11 +24,14 @@ export function parseSuggestionPatch(patch: string): SuggestionPatch {
   }
 
   const lines = normalized.split("\n");
-  const hasDiffMarkers = lines.some(
+  const allMarked = lines.every(
     (line) => line.startsWith("-") || line.startsWith("+"),
   );
+  const hasMinus = lines.some((line) => line.startsWith("-"));
+  const hasPlus = lines.some((line) => line.startsWith("+"));
 
-  if (!hasDiffMarkers) {
+  // Require a full +/- hunk. A lone `++i` must stay plain after-text, not `+i`.
+  if (!allMarked || !hasMinus || !hasPlus) {
     return { before: [], after: lines };
   }
 

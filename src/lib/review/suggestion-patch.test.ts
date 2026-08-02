@@ -37,4 +37,32 @@ describe("suggestion-patch", () => {
       after: ["  return a + b;"],
     });
   });
+
+  it("round-trips replacement lines that begin with +", () => {
+    const formatted = formatSuggestionPatch({
+      before: ["i++"],
+      after: ["++i"],
+    });
+    assert.equal(formatted, "-i++\n+++i");
+    assert.deepEqual(parseSuggestionPatch(formatted), {
+      before: ["i++"],
+      after: ["++i"],
+    });
+    assert.equal(replacementFromPatch(formatted), "++i");
+  });
+
+  it("keeps plain ++i as after-only (not a + marker line)", () => {
+    assert.deepEqual(parseSuggestionPatch("++i"), {
+      before: [],
+      after: ["++i"],
+    });
+    assert.equal(replacementFromPatch("++i"), "++i");
+  });
+
+  it("keeps plain lines that begin with - as after-only", () => {
+    assert.deepEqual(parseSuggestionPatch("-option"), {
+      before: [],
+      after: ["-option"],
+    });
+  });
 });
