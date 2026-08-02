@@ -43,6 +43,11 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
   const [reviewActionError, setReviewActionError] = useState<string | null>(
     null,
   );
+  // After runSnippetReview returns, props lag until router.refresh(). Keep the
+  // latest status so we don't flash the previous FAILED banner / badge.
+  const [localReviewStatus, setLocalReviewStatus] = useState<
+    "COMPLETED" | "FAILED" | "SUPERSEDED" | null
+  >(null);
   const [findings, setFindings] = useState<SnippetFinding[]>(snippet.findings);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(
     () => defaultSelectedFindingId(snippet.findings),
@@ -62,6 +67,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     setIsEditing(false);
     setFindings(snippet.findings);
     setReviewActionError(null);
+    setLocalReviewStatus(null);
     setSelectedFindingId((current) => {
       if (current && snippet.findings.some((finding) => finding.id === current)) {
         return current;
@@ -95,6 +101,14 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
 
   const reviewing =
     isReviewPending || snippet.reviewStatus === "IN_PROGRESS";
+
+  const displayReviewStatus = reviewing
+    ? "IN_PROGRESS"
+    : localReviewStatus === "COMPLETED"
+      ? "COMPLETED"
+      : localReviewStatus === "FAILED"
+        ? "FAILED"
+        : snippet.reviewStatus;
 
   function startEditing() {
     setTitle(savedTitle);
@@ -140,37 +154,45 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
         setFindings([]);
         setSelectedFindingId(null);
         setReviewActionError(null);
+        setLocalReviewStatus(null);
       }
       router.refresh();
     });
   }
 
+  function applyReviewResult(
+    result: Awaited<ReturnType<typeof runSnippetReview>>,
+  ) {
+    if (!result.ok) {
+      setReviewActionError(result.error);
+      return;
+    }
+
+    setLocalReviewStatus(result.status);
+
+    if (result.status === "FAILED") {
+      setReviewActionError(
+        result.errorMessage ?? "Review failed. Please try again.",
+      );
+    } else if (result.status === "SUPERSEDED") {
+      setReviewActionError(
+        result.errorMessage ??
+          "Another review finished first. Refresh to see the latest results.",
+      );
+    }
+
+    router.refresh();
+  }
+
   function handleRunReview() {
     setReviewActionError(null);
+    setLocalReviewStatus(null);
     // Mirror runReview: prior findings are deleted as soon as the run starts.
     setFindings([]);
     setSelectedFindingId(null);
 
     startReviewTransition(async () => {
-      const result = await runSnippetReview(snippet.id);
-
-      if (!result.ok) {
-        setReviewActionError(result.error);
-        return;
-      }
-
-      if (result.status === "FAILED") {
-        setReviewActionError(
-          result.errorMessage ?? "Review failed. Please try again.",
-        );
-      } else if (result.status === "SUPERSEDED") {
-        setReviewActionError(
-          result.errorMessage ??
-            "Another review finished first. Refresh to see the latest results.",
-        );
-      }
-
-      router.refresh();
+      applyReviewResult(await runSnippetReview(snippet.id));
     });
   }
 
@@ -200,7 +222,13 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
 
   const failedMessage =
     reviewActionError ??
-    (snippet.reviewStatus === "FAILED" ? snippet.reviewErrorMessage : null);
+    // Prefer local status after a re-run so a COMPLETED result is not masked by
+    // stale FAILED props while refresh is in flight. Also hide while reviewing.
+    (!reviewing &&
+    localReviewStatus == null &&
+    snippet.reviewStatus === "FAILED"
+      ? snippet.reviewErrorMessage
+      : null);
 
   return (
     <>
@@ -281,9 +309,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <ReviewStatusBadge
-              status={reviewing ? "IN_PROGRESS" : snippet.reviewStatus}
-            />
+            <ReviewStatusBadge status={displayReviewStatus} />
             <span className="text-sm text-muted">
               Created {formatDateTime(snippet.createdAt)}
             </span>
@@ -298,9 +324,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
             <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-medium text-slate-700">
               {formatLanguageLabel(savedLanguage)}
             </span>
-            <ReviewStatusBadge
-              status={reviewing ? "IN_PROGRESS" : snippet.reviewStatus}
-            />
+            <ReviewStatusBadge status={displayReviewStatus} />
             <span className="text-sm text-muted">
               Created {formatDateTime(snippet.createdAt)}
             </span>
