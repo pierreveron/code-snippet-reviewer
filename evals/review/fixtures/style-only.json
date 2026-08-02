@@ -1,0 +1,14 @@
+{
+  "id": "style-only",
+  "title": "Unused variable style issue",
+  "language": "typescript",
+  "code": "export function greet(name: string): string {\n  const unused = 42;\n  return `Hello, ${name}`;\n}\n",
+  "expectations": [
+    {
+      "category": "STYLE",
+      "severityAtLeast": "INFO",
+      "lineNear": 2,
+      "descriptionIncludes": ["unused", "dead", "remove", "never"]
+    }
+  ]
+}

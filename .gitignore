@@ -41,6 +41,9 @@ yarn-error.log*
 *.db
 *.db-journal
 
+# AI SDK DevTools captures (local only)
+.devtools
+
 # generated Prisma Client
 /src/generated/prisma
 

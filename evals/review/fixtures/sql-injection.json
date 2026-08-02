@@ -1,0 +1,14 @@
+{
+  "id": "sql-injection",
+  "title": "Unsafe user lookup",
+  "language": "javascript",
+  "code": "function getUser(db, userId) {\n  const query = \"SELECT * FROM users WHERE id = '\" + userId + \"'\";\n  return db.query(query);\n}\n",
+  "expectations": [
+    {
+      "category": "SECURITY",
+      "severityAtLeast": "WARNING",
+      "lineNear": 2,
+      "descriptionIncludes": ["inject", "sql", "parameter", "prepared", "sanitize"]
+    }
+  ]
+}

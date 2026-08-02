@@ -49,6 +49,9 @@ model Snippet {
 model Review {
   id           String       @id @default(cuid())
   snippetId    String       @unique
+  /// Opaque ownership token for the active run. Completion/failure writes
+  /// must match this value so a superseded concurrent run cannot clobber results.
+  runToken     String       @default(cuid())
   status       ReviewStatus @default(IN_PROGRESS)
   errorMessage String?
   createdAt    DateTime     @default(now())
