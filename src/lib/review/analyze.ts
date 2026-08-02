@@ -70,7 +70,7 @@ export async function analyzeSnippet(
   input: AnalyzeSnippetInput,
 ): Promise<ReviewFinding[]> {
   const model = resolveReviewModel();
-  const debugReview = process.env.DEBUG_REVIEW === "1";
+  const includeDebugBody = process.env.INCLUDE_DEBUG_BODY === "1";
 
   await enableReviewDevtools();
 
@@ -83,12 +83,12 @@ export async function analyzeSnippet(
     }),
     instructions: buildSystemPrompt(),
     prompt: buildUserPrompt(input),
-    include: debugReview
+    include: includeDebugBody
       ? { requestBody: true, responseBody: true }
       : undefined,
   });
 
-  if (debugReview) {
+  if (includeDebugBody) {
     console.log(
       "[review] provider request body:\n",
       JSON.stringify(result.request.body, null, 2),

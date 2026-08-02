@@ -1,15 +1,11 @@
-let enabled = false;
-
 /**
- * Register AI SDK DevTools telemetry once (local debug only).
+ * Register AI SDK DevTools telemetry when AI_SDK_DEVTOOLS=1.
  * Captures runs into `.devtools/generations.json` for the viewer UI.
  */
 export async function enableReviewDevtools() {
-  if (enabled || process.env.DEBUG_REVIEW !== "1") {
+  if (process.env.AI_SDK_DEVTOOLS !== "1") {
     return;
   }
-
-  enabled = true;
 
   const [{ registerTelemetry }, { DevToolsTelemetry }] = await Promise.all([
     import("ai"),

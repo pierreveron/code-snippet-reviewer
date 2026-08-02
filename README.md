@@ -44,12 +44,12 @@ Switch providers with the same format, e.g. `anthropic:claude-sonnet-4-5`.
 
 ### Debugging reviews
 
-Set `DEBUG_REVIEW=1` in `.env` to:
+Optional `.env` flags (independent):
 
-- Log the raw provider request/response bodies to the console
-- Capture AI SDK runs for [DevTools](https://ai-sdk.dev/docs/ai-sdk-core/devtools) (local only)
+- `INCLUDE_DEBUG_BODY=1` — log raw provider request/response bodies to the console
+- `AI_SDK_DEVTOOLS=1` — capture runs for [DevTools](https://ai-sdk.dev/docs/ai-sdk-core/devtools) (local only)
 
-Then in one terminal run a review or eval, and in another:
+With DevTools enabled, run a review or eval in one terminal and the viewer in another:
 
 ```bash
 npm run devtools
