@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { runSnippetReview } from "@/app/actions/reviews";
 import { updateSnippet } from "@/app/actions/snippets";
@@ -20,13 +20,21 @@ import type { SnippetDetail, SnippetFinding } from "@/lib/snippets";
 
 type SnippetDetailContentProps = {
   snippet: SnippetDetail;
+  /** When true (e.g. after Create and Review), start a review once on mount. */
+  autoStartReview?: boolean;
 };
+
+/** Survives Strict Mode remounts so Create and Review only kicks off once. */
+const autoStartedReviewIds = new Set<string>();
 
 function defaultSelectedFindingId(findings: SnippetFinding[]): string | null {
   return findings[0]?.id ?? null;
 }
 
-export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
+export function SnippetDetailContent({
+  snippet,
+  autoStartReview = false,
+}: SnippetDetailContentProps) {
   const router = useRouter();
   const initialLanguage = normalizeLanguageValue(snippet.language);
 
@@ -100,7 +108,9 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
   }, [isEditing, selectedFinding]);
 
   const reviewing =
-    isReviewPending || snippet.reviewStatus === "IN_PROGRESS";
+    isReviewPending ||
+    snippet.reviewStatus === "IN_PROGRESS" ||
+    autoStartReview;
 
   const displayReviewStatus = reviewing
     ? "IN_PROGRESS"
@@ -195,6 +205,41 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
       applyReviewResult(await runSnippetReview(snippet.id));
     });
   }
+
+  useEffect(() => {
+    if (!autoStartReview || autoStartedReviewIds.has(snippet.id)) {
+      return;
+    }
+
+    autoStartedReviewIds.add(snippet.id);
+    router.replace(`/snippets/${snippet.id}`);
+
+    // New snippets have no findings yet; skip the sync clears used by the
+    // manual Run review button so this effect stays lint-clean.
+    startReviewTransition(async () => {
+      const result = await runSnippetReview(snippet.id);
+
+      if (!result.ok) {
+        setReviewActionError(result.error);
+        return;
+      }
+
+      setLocalReviewStatus(result.status);
+
+      if (result.status === "FAILED") {
+        setReviewActionError(
+          result.errorMessage ?? "Review failed. Please try again.",
+        );
+      } else if (result.status === "SUPERSEDED") {
+        setReviewActionError(
+          result.errorMessage ??
+            "Another review finished first. Refresh to see the latest results.",
+        );
+      }
+
+      router.refresh();
+    });
+  }, [autoStartReview, router, snippet.id, startReviewTransition]);
 
   function handleAccepted(findingId: string, nextCode: string) {
     setCode(nextCode);

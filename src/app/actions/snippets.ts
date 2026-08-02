@@ -23,6 +23,8 @@ export async function createSnippet(input: {
   title: string;
   language: string;
   code: string;
+  /** When true, redirect with ?review=1 so the detail page starts a review. */
+  startReview?: boolean;
 }): Promise<CreateSnippetResult> {
   const parsed = createSnippetSchema.safeParse(input);
 
@@ -52,7 +54,8 @@ export async function createSnippet(input: {
   }
 
   revalidatePath("/");
-  redirect(`/snippets/${snippet.id}`);
+  const reviewQuery = input.startReview ? "?review=1" : "";
+  redirect(`/snippets/${snippet.id}${reviewQuery}`);
 }
 
 export async function updateSnippet(input: {
