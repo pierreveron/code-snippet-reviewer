@@ -1,6 +1,8 @@
 # Code Snippet Reviewer
 
-Lightweight, self-service code review for ad-hoc snippets (Gitar take-home).
+A small web app for reviewing short, ad-hoc code snippets with an LLM — not full
+PRs or repositories. Paste a snippet, run a review, inspect line-level findings,
+then apply or dismiss each suggestion.
 
 ## Setup Instructions
 
