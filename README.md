@@ -162,7 +162,38 @@ Findings: open → accepted, dismissed, or stale.
 
 ## What I'd do differently
 
-*To be filled in before submission.*
+**Highest priority**
+
+- **Observability** — structured logs, traces, and per-review token/latency/cost
+  metrics so failures and spend are visible in production.
+
+**Product / review quality**
+
+- **Iterate on how findings are generated** — today’s path is a single
+  structured call; I’d try richer pipelines (e.g. multi-pass, verify-before-
+  keep, or static analysis + LLM) and keep iterating on prompts and schema.
+- **Stronger evals first** — I don’t have enough coverage to know whether
+  findings are consistently good (right severity, category, and substance).
+  Before leaning harder on the LLM in production, I’d expand fixture evals so
+  quality is measurable, not just anecdotal.
+- **Feedback loop** — use accept/dismiss (and maybe short reasons) to improve
+  prompts, ranking, or evals over time instead of treating every review as
+  one-shot.
+- **Delete snippet** — small UX gap; users should be able to remove snippets
+  from the dashboard.
+- **Smarter create UX** — let the user paste only the code body; detect the
+  language automatically and have an LLM suggest a title, instead of requiring
+  title + language up front.
+
+**If this were a larger production system**
+
+- **Background review jobs** — move the LLM call off the request (queue +
+  polling or streaming) so reviews survive reloads and don’t hit HTTP timeouts
+  (see the trade-off under Review process).
+- **Separate API** — extract a real HTTP/API layer instead of only Next.js
+  server actions, so other clients and workers can share the same backend.
+- **Different database / schema shape** — e.g. Postgres for multi-instance
+  writes and clearer multi-user ownership, rather than a single SQLite file.
 
 ## AI usage log
 
