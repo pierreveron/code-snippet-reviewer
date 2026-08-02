@@ -15,52 +15,49 @@ export function extractLineRange(
   return lines.slice(start - 1, end).join("\n");
 }
 
-/**
- * Rebase replacement indent onto the original block's first-line indent.
- *
- * Models often under-indent (`return x`) or over-indent (`   console.log`)
- * relative to the targeted lines. Preserve relative indentation inside the
- * replacement, but make the first non-empty line match the original indent.
- */
-export function alignReplacementIndent(
+/** Rebase replacement indentation while preserving every source line. */
+export function alignReplacementLines(
   originalLines: string[],
-  replacement: string,
-): string {
-  if (replacement.length === 0 || originalLines.length === 0) {
-    return replacement;
+  replacementLines: string[],
+): string[] {
+  if (replacementLines.length === 0 || originalLines.length === 0) {
+    return replacementLines;
   }
 
-  const hadTrailingNewline = replacement.endsWith("\n");
-  const replacementLines = replacement.replace(/\n$/, "").split("\n");
-  const originalIndent = leadingWhitespace(originalLines[0] ?? "");
+  const originalIndent = leadingWhitespace(
+    originalLines.find((line) => line.trim().length > 0) ?? "",
+  );
 
   const firstNonEmpty = replacementLines.find((line) => line.trim().length > 0);
   if (!firstNonEmpty) {
-    return replacement;
+    return replacementLines;
   }
 
   const baseReplacementIndent = leadingWhitespace(firstNonEmpty);
   if (baseReplacementIndent === originalIndent) {
-    return replacement;
+    return replacementLines;
   }
 
   const baseLen = baseReplacementIndent.length;
 
-  const aligned = replacementLines.map((line) => {
+  return replacementLines.map((line) => {
     if (line.length === 0) {
       return line;
     }
 
     const lineIndent = leadingWhitespace(line);
     const content = line.slice(lineIndent.length);
-    const relativeIndent =
-      lineIndent.length >= baseLen ? lineIndent.slice(baseLen) : "";
+    const relativeIndentLength = lineIndent.length - baseLen;
+    const rebasedIndent =
+      relativeIndentLength >= 0
+        ? `${originalIndent}${lineIndent.slice(baseLen)}`
+        : originalIndent.slice(
+            0,
+            Math.max(0, originalIndent.length + relativeIndentLength),
+          );
 
-    return `${originalIndent}${relativeIndent}${content}`;
+    return `${rebasedIndent}${content}`;
   });
-
-  const joined = aligned.join("\n");
-  return hadTrailingNewline ? `${joined}\n` : joined;
 }
 
 /**
@@ -71,7 +68,7 @@ export function applyLineReplacement(
   code: string,
   startLine: number,
   endLine: number,
-  replacement: string,
+  replacementLines: string[],
 ): string {
   const lines = code.split("\n");
   const startIndex = startLine - 1;
@@ -84,14 +81,11 @@ export function applyLineReplacement(
   }
 
   const originalLines = lines.slice(startIndex, endIndex + 1);
-  const aligned = alignReplacementIndent(originalLines, replacement);
-
-  const replacementLines =
-    aligned.length === 0 ? [] : aligned.replace(/\n$/, "").split("\n");
+  const aligned = alignReplacementLines(originalLines, replacementLines);
 
   const next = [
     ...lines.slice(0, startIndex),
-    ...replacementLines,
+    ...aligned,
     ...lines.slice(endIndex + 1),
   ];
 
@@ -101,14 +95,72 @@ export function applyLineReplacement(
 export function lineDeltaForReplacement(
   startLine: number,
   endLine: number,
-  replacement: string,
+  replacementLines: string[],
 ): number {
   const oldCount = endLine - startLine + 1;
-  const newCount =
-    replacement.length === 0
-      ? 0
-      : replacement.replace(/\n$/, "").split("\n").length;
-  return newCount - oldCount;
+  return replacementLines.length - oldCount;
+}
+
+export type LocatedLineRange = {
+  startLine: number;
+  endLine: number;
+};
+
+/**
+ * Prefer the finding's current range, then relocate an exact frozen `before`
+ * block only when it occurs once in the current snippet.
+ */
+export function locateExactLineRange(
+  code: string,
+  expectedLines: string[],
+  preferredStartLine: number,
+): LocatedLineRange | null {
+  if (expectedLines.length === 0) {
+    return null;
+  }
+
+  const lines = code.split("\n");
+  const matchesAt = (startIndex: number) =>
+    expectedLines.every(
+      (expected, offset) => lines[startIndex + offset] === expected,
+    );
+  const preferredStartIndex = preferredStartLine - 1;
+
+  if (
+    preferredStartIndex >= 0 &&
+    preferredStartIndex + expectedLines.length <= lines.length &&
+    matchesAt(preferredStartIndex)
+  ) {
+    return {
+      startLine: preferredStartLine,
+      endLine: preferredStartLine + expectedLines.length - 1,
+    };
+  }
+
+  let uniqueStartIndex: number | null = null;
+  for (
+    let startIndex = 0;
+    startIndex + expectedLines.length <= lines.length;
+    startIndex += 1
+  ) {
+    if (!matchesAt(startIndex)) {
+      continue;
+    }
+    if (uniqueStartIndex !== null) {
+      return null;
+    }
+    uniqueStartIndex = startIndex;
+  }
+
+  if (uniqueStartIndex === null) {
+    return null;
+  }
+
+  const startLine = uniqueStartIndex + 1;
+  return {
+    startLine,
+    endLine: startLine + expectedLines.length - 1,
+  };
 }
 
 /**

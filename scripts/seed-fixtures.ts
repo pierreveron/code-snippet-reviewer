@@ -7,6 +7,7 @@ config({ path: ".env" });
 
 import { fixtureSchema, type ReviewFixture } from "../evals/review/types";
 import { createPrismaClient } from "../src/lib/create-prisma-client";
+import { encodeSuggestionPatch } from "../src/lib/review/suggestion-patch";
 
 const FIXTURES_DIR = path.join(process.cwd(), "evals/review/fixtures");
 
@@ -37,19 +38,51 @@ async function main() {
     const deleted = await db.snippet.deleteMany();
     console.log(`Deleted ${deleted.count} existing snippet(s)`);
 
+    let findingCount = 0;
+
     for (const fixture of fixtures) {
+      const findings = fixture.findings ?? [];
+
       await db.snippet.create({
         data: {
           id: fixture.id,
           title: fixture.title,
           language: fixture.language,
           code: fixture.code,
+          ...(findings.length > 0
+            ? {
+                review: {
+                  create: {
+                    status: "COMPLETED",
+                    completedAt: new Date(),
+                    findings: {
+                      create: findings.map((finding) => ({
+                        startLine: finding.startLine,
+                        endLine: finding.endLine ?? finding.startLine,
+                        severity: finding.severity,
+                        category: finding.category,
+                        description: finding.description,
+                        suggestionPatch: finding.suggestionPatch
+                          ? encodeSuggestionPatch(finding.suggestionPatch)
+                          : null,
+                      })),
+                    },
+                  },
+                },
+              }
+            : {}),
         },
       });
-      console.log(`• ${fixture.id} — ${fixture.title}`);
+
+      findingCount += findings.length;
+      const findingLabel =
+        findings.length > 0 ? ` (${findings.length} finding(s))` : "";
+      console.log(`• ${fixture.id} — ${fixture.title}${findingLabel}`);
     }
 
-    console.log(`\nSeeded ${fixtures.length} snippet(s) from fixtures`);
+    console.log(
+      `\nSeeded ${fixtures.length} snippet(s) from fixtures (${findingCount} finding(s))`,
+    );
   } finally {
     await db.$disconnect();
   }

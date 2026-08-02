@@ -16,13 +16,11 @@ export function buildSystemPrompt() {
     "Use endLine only when a finding spans multiple consecutive lines.",
     "Severity guide: CRITICAL = exploitable or likely breakage; WARNING = real defect or risk; INFO = minor only when nothing more important remains.",
     "Categories: BUG, SECURITY, PERFORMANCE, STYLE, OTHER.",
-    "suggestedFix must be a self-contained GitHub-style hunk for lines startLine..endLine — both the old and new code.",
-    "Format suggestedFix with one line per source line, each prefixed by '-' (remove) or '+' (add). No markdown fences, no @@ headers, no prose.",
-    "Copy the current snippet lines exactly on '-' lines (including indentation). Put the replacement on '+' lines (same indentation rules).",
-    "Example for a sum() that incorrectly subtracts:",
-    "suggestedFix:\\n-  return a - b;\\n+  return a + b;",
-    "description explains the issue in plain language; keep suggestedFix as the hunk only.",
-    "If you cannot propose an applyable hunk, set suggestedFix to null.",
+    "replacementLines must contain the exact replacement source lines for startLine..endLine, without diff markers, markdown fences, or prose.",
+    "Use [] to delete the target range, [''] to replace it with one blank line, and preserve intentional leading/trailing blank lines as array entries.",
+    "Example for a sum() that incorrectly subtracts: replacementLines: ['  return a + b;'].",
+    "description explains the issue in plain language; replacementLines contains code only.",
+    "If you cannot propose a safe replacement, set replacementLines to null.",
     "If the snippet looks solid, return an empty findings array.",
   ].join(" ");
 }

@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import { runSnippetReview } from "@/app/actions/reviews";
+import {
+  runSnippetReview,
+  type AcceptedFindingState,
+} from "@/app/actions/reviews";
 import { updateSnippet } from "@/app/actions/snippets";
 import { CodeEditor } from "@/components/CodeEditor";
 import { FindingsPanel } from "@/components/FindingsPanel";
@@ -45,9 +48,11 @@ export function SnippetDetailContent({
   const [savedTitle, setSavedTitle] = useState(snippet.title);
   const [savedLanguage, setSavedLanguage] = useState(initialLanguage);
   const [savedCode, setSavedCode] = useState(snippet.code);
+  const [contentVersion, setContentVersion] = useState(snippet.contentVersion);
   const [errors, setErrors] = useState<UpdateSnippetFieldErrors>({});
   const [isPending, startTransition] = useTransition();
   const [isReviewPending, startReviewTransition] = useTransition();
+  const [isFindingActionPending, setIsFindingActionPending] = useState(false);
   const [reviewActionError, setReviewActionError] = useState<string | null>(
     null,
   );
@@ -71,6 +76,7 @@ export function SnippetDetailContent({
     setSavedTitle(snippet.title);
     setSavedLanguage(nextLanguage);
     setSavedCode(snippet.code);
+    setContentVersion(snippet.contentVersion);
     setErrors({});
     setIsEditing(false);
     setFindings(snippet.findings);
@@ -98,7 +104,11 @@ export function SnippetDetailContent({
   );
 
   const highlightRange = useMemo(() => {
-    if (isEditing || !selectedFinding) {
+    if (
+      isEditing ||
+      !selectedFinding ||
+      selectedFinding.resolution !== "OPEN"
+    ) {
       return null;
     }
     return {
@@ -107,12 +117,7 @@ export function SnippetDetailContent({
     };
   }, [isEditing, selectedFinding]);
 
-  const reviewing =
-    isReviewPending ||
-    snippet.reviewStatus === "IN_PROGRESS" ||
-    autoStartReview;
-
-  const displayReviewStatus = reviewing
+  const displayReviewStatus = isReviewPending
     ? "IN_PROGRESS"
     : localReviewStatus === "COMPLETED"
       ? "COMPLETED"
@@ -121,6 +126,9 @@ export function SnippetDetailContent({
         : snippet.reviewStatus;
 
   function startEditing() {
+    if (isFindingActionPending) {
+      return;
+    }
     setTitle(savedTitle);
     setLanguage(savedLanguage);
     setCode(savedCode);
@@ -140,33 +148,41 @@ export function SnippetDetailContent({
     setErrors({});
 
     startTransition(async () => {
-      const nextTitle = title.trim();
-      const reviewOutdated =
-        code !== savedCode || language !== savedLanguage;
-      const result = await updateSnippet({
-        id: snippet.id,
-        title: nextTitle,
-        language,
-        code,
-      });
+      try {
+        const nextTitle = title.trim();
+        const reviewOutdated =
+          code !== savedCode || language !== savedLanguage;
+        const result = await updateSnippet({
+          id: snippet.id,
+          title: nextTitle,
+          language,
+          code,
+          expectedVersion: contentVersion,
+        });
 
-      if (!result.ok) {
-        setErrors(result.errors);
-        return;
-      }
+        if (!result.ok) {
+          setErrors(result.errors);
+          return;
+        }
 
-      setTitle(nextTitle);
-      setSavedTitle(nextTitle);
-      setSavedLanguage(language);
-      setSavedCode(code);
-      setIsEditing(false);
-      if (reviewOutdated) {
-        setFindings([]);
-        setSelectedFindingId(null);
-        setReviewActionError(null);
-        setLocalReviewStatus(null);
+        setTitle(nextTitle);
+        setSavedTitle(nextTitle);
+        setSavedLanguage(language);
+        setSavedCode(code);
+        setContentVersion(result.contentVersion);
+        setIsEditing(false);
+        if (reviewOutdated) {
+          setFindings([]);
+          setSelectedFindingId(null);
+          setReviewActionError(null);
+          setLocalReviewStatus(null);
+        }
+        router.refresh();
+      } catch {
+        setErrors({
+          form: ["Couldn't save the snippet. Please try again."],
+        });
       }
-      router.refresh();
     });
   }
 
@@ -175,10 +191,13 @@ export function SnippetDetailContent({
   ) {
     if (!result.ok) {
       setReviewActionError(result.error);
+      router.refresh();
       return;
     }
 
     setLocalReviewStatus(result.status);
+    setFindings(result.findings);
+    setSelectedFindingId(defaultSelectedFindingId(result.findings));
 
     if (result.status === "FAILED") {
       setReviewActionError(
@@ -189,6 +208,8 @@ export function SnippetDetailContent({
         result.errorMessage ??
           "Another review finished first. Refresh to see the latest results.",
       );
+    } else {
+      setReviewActionError(null);
     }
 
     router.refresh();
@@ -202,7 +223,12 @@ export function SnippetDetailContent({
     setSelectedFindingId(null);
 
     startReviewTransition(async () => {
-      applyReviewResult(await runSnippetReview(snippet.id));
+      try {
+        applyReviewResult(await runSnippetReview(snippet.id));
+      } catch {
+        setReviewActionError("Couldn't run the review. Please try again.");
+        router.refresh();
+      }
     });
   }
 
@@ -217,39 +243,52 @@ export function SnippetDetailContent({
     // New snippets have no findings yet; skip the sync clears used by the
     // manual Run review button so this effect stays lint-clean.
     startReviewTransition(async () => {
-      const result = await runSnippetReview(snippet.id);
+      try {
+        const result = await runSnippetReview(snippet.id);
 
-      if (!result.ok) {
-        setReviewActionError(result.error);
-        return;
+        if (!result.ok) {
+          setReviewActionError(result.error);
+          router.refresh();
+          return;
+        }
+
+        setLocalReviewStatus(result.status);
+        setFindings(result.findings);
+        setSelectedFindingId(defaultSelectedFindingId(result.findings));
+
+        if (result.status === "FAILED") {
+          setReviewActionError(
+            result.errorMessage ?? "Review failed. Please try again.",
+          );
+        } else if (result.status === "SUPERSEDED") {
+          setReviewActionError(
+            result.errorMessage ??
+              "Another review finished first. Refresh to see the latest results.",
+          );
+        } else {
+          setReviewActionError(null);
+        }
+
+        router.refresh();
+      } catch {
+        setReviewActionError("Couldn't run the review. Please try again.");
+        router.refresh();
       }
-
-      setLocalReviewStatus(result.status);
-
-      if (result.status === "FAILED") {
-        setReviewActionError(
-          result.errorMessage ?? "Review failed. Please try again.",
-        );
-      } else if (result.status === "SUPERSEDED") {
-        setReviewActionError(
-          result.errorMessage ??
-            "Another review finished first. Refresh to see the latest results.",
-        );
-      }
-
-      router.refresh();
     });
   }, [autoStartReview, router, snippet.id, startReviewTransition]);
 
-  function handleAccepted(findingId: string, nextCode: string) {
-    setCode(nextCode);
-    setSavedCode(nextCode);
+  function handleAccepted(result: AcceptedFindingState) {
+    setCode(result.code);
+    setSavedCode(result.code);
+    setContentVersion(result.contentVersion);
+    const canonicalById = new Map(
+      result.findings.map((finding) => [finding.id, finding]),
+    );
     setFindings((current) =>
-      current.map((finding) =>
-        finding.id === findingId
-          ? { ...finding, resolution: "ACCEPTED" }
-          : finding,
-      ),
+      current.map((finding) => {
+        const canonical = canonicalById.get(finding.id);
+        return canonical ? { ...finding, ...canonical } : finding;
+      }),
     );
     router.refresh();
   }
@@ -269,7 +308,7 @@ export function SnippetDetailContent({
     reviewActionError ??
     // Prefer local status after a re-run so a COMPLETED result is not masked by
     // stale FAILED props while refresh is in flight. Also hide while reviewing.
-    (!reviewing &&
+    (!isReviewPending &&
     localReviewStatus == null &&
     snippet.reviewStatus === "FAILED"
       ? snippet.reviewErrorMessage
@@ -310,7 +349,7 @@ export function SnippetDetailContent({
               <button
                 type="button"
                 onClick={startEditing}
-                disabled={reviewing}
+                disabled={isReviewPending || isFindingActionPending}
                 className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
               >
                 Edit
@@ -318,10 +357,10 @@ export function SnippetDetailContent({
               <button
                 type="button"
                 onClick={handleRunReview}
-                disabled={reviewing}
+                disabled={isReviewPending || isFindingActionPending}
                 className="inline-flex h-8 items-center justify-center rounded-md bg-accent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {reviewing ? "Reviewing…" : "Run review"}
+                {isReviewPending ? "Reviewing…" : "Run review"}
               </button>
             </>
           )}
@@ -338,7 +377,8 @@ export function SnippetDetailContent({
               onChange={(event) => setTitle(event.target.value)}
               aria-label="Title"
               aria-invalid={Boolean(errors.title?.[0])}
-              className="h-10 w-full rounded-md border border-border bg-surface px-3 text-xl font-semibold text-foreground outline-none ring-accent/30 placeholder:text-muted focus:border-accent focus:ring-2"
+              disabled={isPending}
+              className="h-10 w-full rounded-md border border-border bg-surface px-3 text-xl font-semibold text-foreground outline-none ring-accent/30 placeholder:text-muted focus:border-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
             {errors.title?.[0] ? (
               <p className="mt-1.5 text-xs text-rose-600">{errors.title[0]}</p>
@@ -350,6 +390,7 @@ export function SnippetDetailContent({
               value={language}
               onChange={setLanguage}
               error={errors.language?.[0]}
+              disabled={isPending}
             />
           </div>
 
@@ -386,7 +427,16 @@ export function SnippetDetailContent({
         </div>
       ) : null}
 
-      {reviewing ? (
+      {errors.form?.[0] ? (
+        <div
+          role="alert"
+          className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+        >
+          {errors.form[0]}
+        </div>
+      ) : null}
+
+      {isReviewPending ? (
         <div className="mb-6 rounded-lg border border-teal-200 bg-accent-soft/60 px-4 py-3 text-sm text-accent">
           Review in progress — analyzing the snippet with the configured model…
         </div>
@@ -397,10 +447,10 @@ export function SnippetDetailContent({
           <CodeEditor
             value={isEditing ? code : savedCode}
             language={isEditing ? language : savedLanguage}
-            readOnly={!isEditing}
+            readOnly={!isEditing || isPending}
             height="520px"
             highlightRange={highlightRange}
-            onChange={isEditing ? setCode : undefined}
+            onChange={isEditing && !isPending ? setCode : undefined}
           />
           {errors.code?.[0] ? (
             <p className="mt-1.5 text-xs text-rose-600">{errors.code[0]}</p>
@@ -411,10 +461,12 @@ export function SnippetDetailContent({
           <aside className="w-full shrink-0 md:w-[22rem] lg:w-[26rem]">
             <FindingsPanel
               findings={findings}
+              reviewStatus={displayReviewStatus}
               selectedFindingId={selectedFindingId}
               onSelectFinding={setSelectedFindingId}
               onAccepted={handleAccepted}
               onDismissed={handleDismissed}
+              onActionPendingChange={setIsFindingActionPending}
             />
           </aside>
         ) : null}

@@ -1,21 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
-
-import { acceptFinding, dismissFinding } from "@/app/actions/reviews";
 import { SuggestedChangeDiff } from "@/components/SuggestedChangeDiff";
 import type {
   FindingCategory,
   FindingSeverity,
 } from "@/generated/prisma/enums";
+import { decodeSuggestionPatch } from "@/lib/review/suggestion-patch";
 import type { SnippetFinding } from "@/lib/snippets";
 
 type FindingItemProps = {
   finding: SnippetFinding;
   selected: boolean;
   onSelect: () => void;
-  onAccepted: (findingId: string, code: string) => void;
-  onDismissed: (findingId: string) => void;
+  actionsDisabled: boolean;
+  pendingAction: "accept" | "dismiss" | null;
+  actionError: string | null;
+  onAccept: () => void;
+  onDismiss: () => void;
 };
 
 const severityStyles: Record<FindingSeverity, string> = {
@@ -39,93 +40,77 @@ function lineLabel(startLine: number, endLine: number | null): string {
   return `L${startLine}`;
 }
 
+function optionId(findingId: string): string {
+  return `finding-option-${findingId}`;
+}
+
 export function FindingItem({
   finding,
   selected,
   onSelect,
-  onAccepted,
-  onDismissed,
+  actionsDisabled,
+  pendingAction,
+  actionError,
+  onAccept,
+  onDismiss,
 }: FindingItemProps) {
-  const [isPending, startTransition] = useTransition();
-  const [actionError, setActionError] = useState<string | null>(null);
   const isResolved = finding.resolution !== "OPEN";
-  const hasSuggestion = Boolean(finding.suggestedFix);
-
-  function handleAccept() {
-    setActionError(null);
-    startTransition(async () => {
-      const result = await acceptFinding(finding.id);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      onAccepted(finding.id, result.code);
-    });
-  }
-
-  function handleDismiss() {
-    setActionError(null);
-    startTransition(async () => {
-      const result = await dismissFinding(finding.id);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      onDismissed(finding.id);
-    });
-  }
+  const hasSuggestion = finding.suggestionPatch
+    ? decodeSuggestionPatch(finding.suggestionPatch) !== null
+    : false;
 
   return (
-    <li>
+    <li
+      id={optionId(finding.id)}
+      role="option"
+      aria-selected={selected}
+      onClick={onSelect}
+      className="cursor-pointer"
+    >
       <article
-        aria-current={selected ? "true" : undefined}
         className={[
-          "w-full rounded-lg border px-3 py-3 text-left transition-colors",
+          "w-full overflow-hidden rounded-lg border px-3 py-3 text-left transition-colors",
           selected
-            ? "border-accent bg-accent-soft/50 ring-1 ring-accent/30"
+            ? "border-accent bg-accent-soft/50 ring-1 ring-inset ring-accent/30"
             : "border-border bg-surface",
           isResolved ? "opacity-70" : "",
         ].join(" ")}
       >
-        <button
-          type="button"
-          onClick={onSelect}
-          className="w-full rounded-md text-left outline-none ring-accent/30 focus-visible:ring-2"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs font-medium text-muted">
-              {lineLabel(finding.startLine, finding.endLine)}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-xs font-medium text-muted">
+            {lineLabel(finding.startLine, finding.endLine)}
+          </span>
+          <span
+            className={[
+              "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
+              severityStyles[finding.severity],
+            ].join(" ")}
+          >
+            {finding.severity.toLowerCase()}
+          </span>
+          <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">
+            {categoryLabels[finding.category]}
+          </span>
+          {isResolved ? (
+            <span className="text-[11px] font-medium text-muted">
+              {finding.resolution === "ACCEPTED"
+                ? "Applied"
+                : finding.resolution === "STALE"
+                  ? "Needs re-review"
+                  : "Dismissed"}
             </span>
-            <span
-              className={[
-                "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
-                severityStyles[finding.severity],
-              ].join(" ")}
-            >
-              {finding.severity.toLowerCase()}
-            </span>
-            <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">
-              {categoryLabels[finding.category]}
-            </span>
-            {isResolved ? (
-              <span className="text-[11px] font-medium text-muted">
-                {finding.resolution === "ACCEPTED" ? "Applied" : "Dismissed"}
-              </span>
-            ) : null}
-          </div>
+          ) : null}
+        </div>
 
-          <p className="mt-2 text-sm leading-relaxed text-foreground">
-            {finding.description}
-          </p>
-        </button>
+        <p className="mt-2 text-sm leading-relaxed text-foreground">
+          {finding.description}
+        </p>
 
-        {finding.suggestedFix ? (
-          <div onClick={onSelect}>
-            <SuggestedChangeDiff
-              suggestedFix={finding.suggestedFix}
-              defaultOpen={finding.resolution === "OPEN"}
-            />
-          </div>
+        {finding.suggestionPatch && hasSuggestion ? (
+          <SuggestedChangeDiff
+            suggestionPatch={finding.suggestionPatch}
+            defaultOpen={finding.resolution === "OPEN"}
+          />
         ) : null}
 
         {actionError ? (
@@ -137,20 +122,28 @@ export function FindingItem({
             {hasSuggestion ? (
               <button
                 type="button"
-                disabled={isPending}
-                onClick={handleAccept}
+                disabled={actionsDisabled}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onAccept();
+                }}
                 className="inline-flex h-7 items-center rounded-md bg-accent px-2.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {isPending ? "Applying…" : "Apply suggestion"}
+                {pendingAction === "accept"
+                  ? "Applying…"
+                  : "Apply suggestion"}
               </button>
             ) : null}
             <button
               type="button"
-              disabled={isPending}
-              onClick={handleDismiss}
+              disabled={actionsDisabled}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDismiss();
+              }}
               className="inline-flex h-7 items-center rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
             >
-              Dismiss
+              {pendingAction === "dismiss" ? "Dismissing…" : "Dismiss"}
             </button>
           </div>
         ) : null}
@@ -158,3 +151,5 @@ export function FindingItem({
     </li>
   );
 }
+
+export { optionId as findingOptionId };

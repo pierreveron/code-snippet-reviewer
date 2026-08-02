@@ -31,16 +31,18 @@ enum FindingResolution {
   OPEN
   ACCEPTED
   DISMISSED
+  STALE
 }
 
 model Snippet {
-  id        String   @id @default(cuid())
-  title     String
-  language  String
-  code      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  review    Review?
+  id             String   @id @default(cuid())
+  title          String
+  language       String
+  code           String
+  contentVersion Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  review         Review?
 
   @@index([language])
   @@index([createdAt])
@@ -52,6 +54,8 @@ model Review {
   /// Opaque ownership token for the active run. Completion/failure writes
   /// must match this value so a superseded concurrent run cannot clobber results.
   runToken     String       @default(cuid())
+  /// Snippet content version analyzed by this review.
+  sourceVersion Int         @default(0)
   status       ReviewStatus @default(IN_PROGRESS)
   errorMessage String?
   createdAt    DateTime     @default(now())
@@ -71,8 +75,8 @@ model Finding {
   severity     FindingSeverity
   category     FindingCategory
   description  String
-  /// GitHub-style hunk from the model: `-old` / `+new` lines (self-contained).
-  suggestedFix String?
+  /// Versioned JSON patch with exact `before` and `after` source-line arrays.
+  suggestionPatch String?
   resolution   FindingResolution @default(OPEN)
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt

@@ -1,17 +1,15 @@
 import { generateText, Output } from "ai";
 
-import { alignReplacementIndent, extractLineRange } from "@/lib/review/apply-fix";
+import { alignReplacementLines, extractLineRange } from "@/lib/review/apply-fix";
 import { enableReviewDevtools } from "@/lib/review/devtools";
 import { resolveReviewModel } from "@/lib/review/model";
 import { buildSystemPrompt, buildUserPrompt } from "@/lib/review/prompt";
 import {
   reviewAnalysisSchema,
+  type ModelReviewFinding,
   type ReviewFinding,
 } from "@/lib/review/schema";
-import {
-  formatSuggestionPatch,
-  parseSuggestionPatch,
-} from "@/lib/review/suggestion-patch";
+import { encodeSuggestionPatch } from "@/lib/review/suggestion-patch";
 
 export type AnalyzeSnippetInput = {
   language: string;
@@ -25,49 +23,22 @@ function lineCount(code: string) {
   return code.split("\n").length;
 }
 
-/**
- * Normalize suggestedFix into a self-contained +/- hunk.
- * If the model only returned the after side, fill `-` lines from the snippet.
- */
 export function normalizeSuggestedFix(
-  suggestedFix: string,
+  replacementLines: string[],
   code: string,
   startLine: number,
   endLine: number | null,
-): string | null {
-  const trimmed = suggestedFix.replace(/^\n+/, "").replace(/\s+$/, "");
-  if (!trimmed) {
-    return null;
-  }
-
-  const parsed = parseSuggestionPatch(trimmed);
+): string {
   const rangeOriginal = extractLineRange(code, startLine, endLine);
-  const originalLines =
-    rangeOriginal.length === 0 ? [] : rangeOriginal.split("\n");
+  const before = rangeOriginal.split("\n");
+  const after = alignReplacementLines(before, replacementLines);
 
-  const before =
-    parsed.before.length > 0 ? parsed.before : originalLines;
-
-  let after = parsed.after;
-  if (after.length === 0 && parsed.before.length === 0) {
-    // Plain replacement with no markers (parseSuggestionPatch after-only path).
-    after = trimmed.split("\n");
-  }
-
-  if (after.length === 0) {
-    return null;
-  }
-
-  const alignedAfter = alignReplacementIndent(before, after.join("\n"))
-    .replace(/\n$/, "")
-    .split("\n");
-
-  return formatSuggestionPatch({ before, after: alignedAfter });
+  return encodeSuggestionPatch({ before, after });
 }
 
 /** Drop / clamp findings that point outside the snippet. */
 export function sanitizeFindings(
-  findings: ReviewFinding[],
+  findings: ModelReviewFinding[],
   code: string,
 ): ReviewFinding[] {
   const totalLines = lineCount(code);
@@ -92,9 +63,9 @@ export function sanitizeFindings(
       }
     }
 
-    const suggestedFix = finding.suggestedFix
+    const suggestionPatch = finding.replacementLines !== null
       ? normalizeSuggestedFix(
-          finding.suggestedFix,
+          finding.replacementLines,
           code,
           finding.startLine,
           endLine,
@@ -107,7 +78,7 @@ export function sanitizeFindings(
       severity: finding.severity,
       category: finding.category,
       description: finding.description.trim(),
-      suggestedFix,
+      suggestionPatch,
     });
   }
 

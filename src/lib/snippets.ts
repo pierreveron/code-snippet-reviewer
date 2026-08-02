@@ -36,7 +36,7 @@ export type SnippetFinding = {
   severity: FindingSeverity;
   category: FindingCategory;
   description: string;
-  suggestedFix: string | null;
+  suggestionPatch: string | null;
   resolution: FindingResolution;
 };
 
@@ -45,6 +45,7 @@ export type SnippetDetail = {
   title: string;
   language: string;
   code: string;
+  contentVersion: number;
   createdAt: Date;
   updatedAt: Date;
   reviewStatus: ReviewStatus | null;
@@ -187,6 +188,7 @@ export async function getSnippet(id: string): Promise<SnippetDetail> {
       title: true,
       language: true,
       code: true,
+      contentVersion: true,
       createdAt: true,
       updatedAt: true,
       review: {
@@ -201,7 +203,7 @@ export async function getSnippet(id: string): Promise<SnippetDetail> {
               severity: true,
               category: true,
               description: true,
-              suggestedFix: true,
+              suggestionPatch: true,
               resolution: true,
             },
           },
@@ -226,6 +228,7 @@ export async function getSnippet(id: string): Promise<SnippetDetail> {
     title: snippet.title,
     language: snippet.language,
     code: snippet.code,
+    contentVersion: snippet.contentVersion,
     createdAt: snippet.createdAt,
     updatedAt: snippet.updatedAt,
     reviewStatus: snippet.review?.status ?? null,
