@@ -2,8 +2,8 @@
 
 import { useId, useState } from "react";
 
-import { alignReplacementIndent } from "@/lib/review/apply-fix";
-import { parseSuggestionPatch } from "@/lib/review/suggestion-patch";
+import { alignReplacementLines } from "@/lib/review/apply-fix";
+import { decodeSuggestionPatch } from "@/lib/review/suggestion-patch";
 import { diffLinePair, type DiffSegment } from "@/lib/inline-diff";
 
 type DiffRow = {
@@ -19,18 +19,18 @@ function wholeLineSegments(text: string, changed: boolean): DiffSegment[] {
 }
 
 /**
- * Build a GitHub-style suggestion hunk from a stored +/- patch in suggestedFix.
- * The red side comes from the model's `-` lines, not from live snippet code.
+ * Build a GitHub-style suggestion view from a structured stored patch.
+ * The red side is the frozen server-captured `before` array.
  */
-export function buildSuggestionDiff(suggestedFix: string): DiffRow[] {
-  const { before, after } = parseSuggestionPatch(suggestedFix);
+export function buildSuggestionDiff(suggestionPatch: string): DiffRow[] {
+  const patch = decodeSuggestionPatch(suggestionPatch);
+  if (!patch) {
+    return [];
+  }
+
+  const { before, after } = patch;
   const oldLines = before;
-  const aligned =
-    oldLines.length > 0
-      ? alignReplacementIndent(oldLines, after.join("\n"))
-      : after.join("\n");
-  const newLines =
-    aligned.length === 0 ? [] : aligned.replace(/\n$/, "").split("\n");
+  const newLines = alignReplacementLines(oldLines, after);
   const rows: DiffRow[] = [];
 
   if (oldLines.length === newLines.length && oldLines.length > 0) {
@@ -78,7 +78,7 @@ export function buildSuggestionDiff(suggestedFix: string): DiffRow[] {
 }
 
 type SuggestedChangeDiffProps = {
-  suggestedFix: string;
+  suggestionPatch: string;
   defaultOpen?: boolean;
 };
 
@@ -127,11 +127,11 @@ function ChevronIcon({ open }: { open: boolean }) {
 }
 
 export function SuggestedChangeDiff({
-  suggestedFix,
+  suggestionPatch,
   defaultOpen = true,
 }: SuggestedChangeDiffProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const rows = buildSuggestionDiff(suggestedFix);
+  const rows = buildSuggestionDiff(suggestionPatch);
   const panelId = useId();
 
   return (
