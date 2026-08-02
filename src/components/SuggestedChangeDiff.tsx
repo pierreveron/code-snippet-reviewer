@@ -1,6 +1,6 @@
 import { alignReplacementIndent } from "@/lib/review/apply-fix";
 import { parseSuggestionPatch } from "@/lib/review/suggestion-patch";
-import { diffChars, type DiffSegment } from "@/lib/inline-diff";
+import { diffLinePair, type DiffSegment } from "@/lib/inline-diff";
 
 type DiffRow = {
   type: "remove" | "add";
@@ -46,7 +46,7 @@ export function buildSuggestionDiff(suggestedFix: string): DiffRow[] {
         continue;
       }
 
-      const { before: beforeSegs, after: afterSegs } = diffChars(
+      const { before: beforeSegs, after: afterSegs } = diffLinePair(
         beforeLine,
         afterLine,
       );
