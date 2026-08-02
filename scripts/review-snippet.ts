@@ -24,6 +24,13 @@ async function main() {
     console.log(`Status: ${result.status}`);
     console.log(`Review id: ${result.reviewId}`);
 
+    if (result.status === "SUPERSEDED") {
+      console.error(
+        result.errorMessage ?? "Review was superseded by a newer run",
+      );
+      process.exit(1);
+    }
+
     if (result.status === "FAILED") {
       console.error(`Error: ${result.errorMessage}`);
       process.exit(1);
