@@ -147,6 +147,9 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
 
   function handleRunReview() {
     setReviewActionError(null);
+    // Mirror runReview: prior findings are deleted as soon as the run starts.
+    setFindings([]);
+    setSelectedFindingId(null);
 
     startReviewTransition(async () => {
       const result = await runSnippetReview(snippet.id);
