@@ -87,7 +87,7 @@ export function SnippetList({
               />
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="[&_tr:last-child_td]:border-b-0">
             {snippets.map((snippet) => (
               <SnippetRow key={snippet.id} snippet={snippet} />
             ))}
