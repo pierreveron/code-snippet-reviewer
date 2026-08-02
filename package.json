@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "review": "tsx scripts/review-snippet.ts"
+    "review": "tsx scripts/review-snippet.ts",
+    "eval:review": "tsx scripts/eval-review.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.27",
