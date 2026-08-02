@@ -415,13 +415,6 @@ export function SnippetDetailContent({
               disabled={isPending}
             />
           </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-sm text-muted">
-              Created {formatDateTime(snippet.createdAt)}
-            </span>
-            <ReviewStatusBadge status={displayReviewStatus} />
-          </div>
         </div>
       ) : (
         <div className="mb-8">
