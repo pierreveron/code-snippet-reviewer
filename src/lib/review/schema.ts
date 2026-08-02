@@ -34,7 +34,9 @@ export const reviewFindingSchema = z.object({
   suggestedFix: z
     .string()
     .nullable()
-    .describe("Concrete fix or improved snippet; null if none"),
+    .describe(
+      "GitHub-style hunk for startLine..endLine: lines prefixed with '-' (current code) and '+' (replacement). No prose, fences, or @@ headers. Null if none.",
+    ),
 });
 
 export const reviewAnalysisSchema = z.object({

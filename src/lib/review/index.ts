@@ -1,4 +1,17 @@
 export { analyzeSnippet, sanitizeFindings } from "@/lib/review/analyze";
+export {
+  alignReplacementIndent,
+  applyLineReplacement,
+  extractLineRange,
+  lineDeltaForReplacement,
+  shiftFindingLinesAfterApply,
+} from "@/lib/review/apply-fix";
+export {
+  formatSuggestionPatch,
+  originalFromPatch,
+  parseSuggestionPatch,
+  replacementFromPatch,
+} from "@/lib/review/suggestion-patch";
 export { enableReviewDevtools } from "@/lib/review/devtools";
 export { getReviewModelId, resolveReviewModel } from "@/lib/review/model";
 export { runReview } from "@/lib/review/run-review";

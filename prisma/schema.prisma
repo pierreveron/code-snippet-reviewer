@@ -71,6 +71,7 @@ model Finding {
   severity     FindingSeverity
   category     FindingCategory
   description  String
+  /// GitHub-style hunk from the model: `-old` / `+new` lines (self-contained).
   suggestedFix String?
   resolution   FindingResolution @default(OPEN)
   createdAt    DateTime          @default(now())
