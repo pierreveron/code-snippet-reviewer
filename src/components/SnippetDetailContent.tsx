@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { runSnippetReview } from "@/app/actions/reviews";
+import {
+  runSnippetReview,
+  type AcceptedFindingState,
+} from "@/app/actions/reviews";
 import { updateSnippet } from "@/app/actions/snippets";
 import { CodeEditor } from "@/components/CodeEditor";
 import { FindingsPanel } from "@/components/FindingsPanel";
@@ -37,9 +40,11 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
   const [savedTitle, setSavedTitle] = useState(snippet.title);
   const [savedLanguage, setSavedLanguage] = useState(initialLanguage);
   const [savedCode, setSavedCode] = useState(snippet.code);
+  const [contentVersion, setContentVersion] = useState(snippet.contentVersion);
   const [errors, setErrors] = useState<UpdateSnippetFieldErrors>({});
   const [isPending, startTransition] = useTransition();
   const [isReviewPending, startReviewTransition] = useTransition();
+  const [isFindingActionPending, setIsFindingActionPending] = useState(false);
   const [reviewActionError, setReviewActionError] = useState<string | null>(
     null,
   );
@@ -63,6 +68,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     setSavedTitle(snippet.title);
     setSavedLanguage(nextLanguage);
     setSavedCode(snippet.code);
+    setContentVersion(snippet.contentVersion);
     setErrors({});
     setIsEditing(false);
     setFindings(snippet.findings);
@@ -111,6 +117,9 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
         : snippet.reviewStatus;
 
   function startEditing() {
+    if (isFindingActionPending) {
+      return;
+    }
     setTitle(savedTitle);
     setLanguage(savedLanguage);
     setCode(savedCode);
@@ -138,6 +147,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
         title: nextTitle,
         language,
         code,
+        expectedVersion: contentVersion,
       });
 
       if (!result.ok) {
@@ -149,6 +159,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
       setSavedTitle(nextTitle);
       setSavedLanguage(language);
       setSavedCode(code);
+      setContentVersion(result.contentVersion);
       setIsEditing(false);
       if (reviewOutdated) {
         setFindings([]);
@@ -165,6 +176,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
   ) {
     if (!result.ok) {
       setReviewActionError(result.error);
+      router.refresh();
       return;
     }
 
@@ -196,15 +208,18 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     });
   }
 
-  function handleAccepted(findingId: string, nextCode: string) {
-    setCode(nextCode);
-    setSavedCode(nextCode);
+  function handleAccepted(result: AcceptedFindingState) {
+    setCode(result.code);
+    setSavedCode(result.code);
+    setContentVersion(result.contentVersion);
+    const canonicalById = new Map(
+      result.findings.map((finding) => [finding.id, finding]),
+    );
     setFindings((current) =>
-      current.map((finding) =>
-        finding.id === findingId
-          ? { ...finding, resolution: "ACCEPTED" }
-          : finding,
-      ),
+      current.map((finding) => {
+        const canonical = canonicalById.get(finding.id);
+        return canonical ? { ...finding, ...canonical } : finding;
+      }),
     );
     router.refresh();
   }
@@ -265,7 +280,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
               <button
                 type="button"
                 onClick={startEditing}
-                disabled={reviewing}
+                disabled={reviewing || isFindingActionPending}
                 className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
               >
                 Edit
@@ -273,7 +288,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
               <button
                 type="button"
                 onClick={handleRunReview}
-                disabled={reviewing}
+                disabled={reviewing || isFindingActionPending}
                 className="inline-flex h-8 items-center justify-center rounded-md bg-accent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {reviewing ? "Reviewing…" : "Run review"}
@@ -343,6 +358,15 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
         </div>
       ) : null}
 
+      {errors.form?.[0] ? (
+        <div
+          role="alert"
+          className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+        >
+          {errors.form[0]}
+        </div>
+      ) : null}
+
       {reviewing ? (
         <div className="mb-6 rounded-lg border border-teal-200 bg-accent-soft/60 px-4 py-3 text-sm text-accent">
           Review in progress — analyzing the snippet with the configured model…
@@ -373,6 +397,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
               onSelectFinding={setSelectedFindingId}
               onAccepted={handleAccepted}
               onDismissed={handleDismissed}
+              onActionPendingChange={setIsFindingActionPending}
             />
           </aside>
         ) : null}

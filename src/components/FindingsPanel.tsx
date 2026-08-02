@@ -1,7 +1,18 @@
 "use client";
 
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type KeyboardEvent,
+} from "react";
 
+import {
+  acceptFinding,
+  dismissFinding,
+  type AcceptedFindingState,
+} from "@/app/actions/reviews";
 import { FindingItem, findingOptionId } from "@/components/FindingItem";
 import type { ReviewStatus } from "@/generated/prisma/enums";
 import type { SnippetFinding } from "@/lib/snippets";
@@ -11,8 +22,9 @@ type FindingsPanelProps = {
   reviewStatus: ReviewStatus | "SUPERSEDED" | null;
   selectedFindingId: string | null;
   onSelectFinding: (findingId: string) => void;
-  onAccepted: (findingId: string, code: string) => void;
+  onAccepted: (state: AcceptedFindingState) => void;
   onDismissed: (findingId: string) => void;
+  onActionPendingChange: (pending: boolean) => void;
 };
 
 function emptyStateCopy(reviewStatus: ReviewStatus | "SUPERSEDED" | null): {
@@ -46,8 +58,18 @@ export function FindingsPanel({
   onSelectFinding,
   onAccepted,
   onDismissed,
+  onActionPendingChange,
 }: FindingsPanelProps) {
   const listRef = useRef<HTMLUListElement>(null);
+  const [isActionPending, startActionTransition] = useTransition();
+  const [pendingAction, setPendingAction] = useState<{
+    findingId: string;
+    type: "accept" | "dismiss";
+  } | null>(null);
+  const [actionError, setActionError] = useState<{
+    findingId: string;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!selectedFindingId || !listRef.current) {
@@ -123,6 +145,54 @@ export function FindingsPanel({
     listRef.current?.focus();
   }
 
+  function handleAccept(findingId: string) {
+    setActionError(null);
+    setPendingAction({ findingId, type: "accept" });
+    onActionPendingChange(true);
+    startActionTransition(async () => {
+      try {
+        const result = await acceptFinding(findingId);
+        if (!result.ok) {
+          setActionError({ findingId, message: result.error });
+          return;
+        }
+        onAccepted(result);
+      } catch {
+        setActionError({
+          findingId,
+          message: "Couldn't apply the suggestion. Please try again.",
+        });
+      } finally {
+        setPendingAction(null);
+        onActionPendingChange(false);
+      }
+    });
+  }
+
+  function handleDismiss(findingId: string) {
+    setActionError(null);
+    setPendingAction({ findingId, type: "dismiss" });
+    onActionPendingChange(true);
+    startActionTransition(async () => {
+      try {
+        const result = await dismissFinding(findingId);
+        if (!result.ok) {
+          setActionError({ findingId, message: result.error });
+          return;
+        }
+        onDismissed(findingId);
+      } catch {
+        setActionError({
+          findingId,
+          message: "Couldn't dismiss the finding. Please try again.",
+        });
+      } finally {
+        setPendingAction(null);
+        onActionPendingChange(false);
+      }
+    });
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-3 flex items-baseline justify-between gap-2">
@@ -148,8 +218,19 @@ export function FindingsPanel({
             finding={finding}
             selected={finding.id === selectedFindingId}
             onSelect={() => handleSelectFinding(finding.id)}
-            onAccepted={onAccepted}
-            onDismissed={onDismissed}
+            actionsDisabled={isActionPending}
+            pendingAction={
+              pendingAction?.findingId === finding.id
+                ? pendingAction.type
+                : null
+            }
+            actionError={
+              actionError?.findingId === finding.id
+                ? actionError.message
+                : null
+            }
+            onAccept={() => handleAccept(finding.id)}
+            onDismiss={() => handleDismiss(finding.id)}
           />
         ))}
       </ul>

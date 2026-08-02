@@ -47,4 +47,5 @@ export type UpdateSnippetFieldErrors = {
   title?: string[];
   language?: string[];
   code?: string[];
+  form?: string[];
 };

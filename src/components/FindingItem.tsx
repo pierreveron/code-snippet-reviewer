@@ -1,21 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
-
-import { acceptFinding, dismissFinding } from "@/app/actions/reviews";
 import { SuggestedChangeDiff } from "@/components/SuggestedChangeDiff";
 import type {
   FindingCategory,
   FindingSeverity,
 } from "@/generated/prisma/enums";
+import { decodeSuggestionPatch } from "@/lib/review/suggestion-patch";
 import type { SnippetFinding } from "@/lib/snippets";
 
 type FindingItemProps = {
   finding: SnippetFinding;
   selected: boolean;
   onSelect: () => void;
-  onAccepted: (findingId: string, code: string) => void;
-  onDismissed: (findingId: string) => void;
+  actionsDisabled: boolean;
+  pendingAction: "accept" | "dismiss" | null;
+  actionError: string | null;
+  onAccept: () => void;
+  onDismiss: () => void;
 };
 
 const severityStyles: Record<FindingSeverity, string> = {
@@ -47,37 +48,16 @@ export function FindingItem({
   finding,
   selected,
   onSelect,
-  onAccepted,
-  onDismissed,
+  actionsDisabled,
+  pendingAction,
+  actionError,
+  onAccept,
+  onDismiss,
 }: FindingItemProps) {
-  const [isPending, startTransition] = useTransition();
-  const [actionError, setActionError] = useState<string | null>(null);
   const isResolved = finding.resolution !== "OPEN";
-  const hasSuggestion = Boolean(finding.suggestedFix);
-
-  function handleAccept() {
-    setActionError(null);
-    startTransition(async () => {
-      const result = await acceptFinding(finding.id);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      onAccepted(finding.id, result.code);
-    });
-  }
-
-  function handleDismiss() {
-    setActionError(null);
-    startTransition(async () => {
-      const result = await dismissFinding(finding.id);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      onDismissed(finding.id);
-    });
-  }
+  const hasSuggestion = finding.suggestionPatch
+    ? decodeSuggestionPatch(finding.suggestionPatch) !== null
+    : false;
 
   return (
     <li
@@ -113,7 +93,11 @@ export function FindingItem({
           </span>
           {isResolved ? (
             <span className="text-[11px] font-medium text-muted">
-              {finding.resolution === "ACCEPTED" ? "Applied" : "Dismissed"}
+              {finding.resolution === "ACCEPTED"
+                ? "Applied"
+                : finding.resolution === "STALE"
+                  ? "Needs re-review"
+                  : "Dismissed"}
             </span>
           ) : null}
         </div>
@@ -122,9 +106,9 @@ export function FindingItem({
           {finding.description}
         </p>
 
-        {finding.suggestedFix ? (
+        {finding.suggestionPatch && hasSuggestion ? (
           <SuggestedChangeDiff
-            suggestedFix={finding.suggestedFix}
+            suggestionPatch={finding.suggestionPatch}
             defaultOpen={finding.resolution === "OPEN"}
           />
         ) : null}
@@ -138,26 +122,28 @@ export function FindingItem({
             {hasSuggestion ? (
               <button
                 type="button"
-                disabled={isPending}
+                disabled={actionsDisabled}
                 onClick={(event) => {
                   event.stopPropagation();
-                  handleAccept();
+                  onAccept();
                 }}
                 className="inline-flex h-7 items-center rounded-md bg-accent px-2.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {isPending ? "Applying…" : "Apply suggestion"}
+                {pendingAction === "accept"
+                  ? "Applying…"
+                  : "Apply suggestion"}
               </button>
             ) : null}
             <button
               type="button"
-              disabled={isPending}
+              disabled={actionsDisabled}
               onClick={(event) => {
                 event.stopPropagation();
-                handleDismiss();
+                onDismiss();
               }}
               className="inline-flex h-7 items-center rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
             >
-              Dismiss
+              {pendingAction === "dismiss" ? "Dismissing…" : "Dismiss"}
             </button>
           </div>
         ) : null}

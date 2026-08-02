@@ -16,7 +16,7 @@ export type CreateSnippetResult =
   | { ok: false; errors: CreateSnippetFieldErrors };
 
 export type UpdateSnippetResult =
-  | { ok: true }
+  | { ok: true; contentVersion: number }
   | { ok: false; errors: UpdateSnippetFieldErrors };
 
 export async function createSnippet(input: {
@@ -60,6 +60,7 @@ export async function updateSnippet(input: {
   title: string;
   language: string;
   code: string;
+  expectedVersion: number;
 }): Promise<UpdateSnippetResult> {
   const parsed = updateSnippetSchema.safeParse({
     title: input.title,
@@ -80,7 +81,7 @@ export async function updateSnippet(input: {
       id: true,
       code: true,
       language: true,
-      review: { select: { id: true } },
+      contentVersion: true,
     },
   });
 
@@ -96,25 +97,49 @@ export async function updateSnippet(input: {
     existing.code !== parsed.data.code ||
     existing.language !== parsed.data.language;
 
-  await db.$transaction(async (tx) => {
-    await tx.snippet.update({
-      where: { id: input.id },
+  const saved = await db.$transaction(async (tx) => {
+    const updated = await tx.snippet.updateMany({
+      where: {
+        id: input.id,
+        contentVersion: input.expectedVersion,
+      },
       data: {
         title: parsed.data.title,
         language: parsed.data.language,
         code: parsed.data.code,
+        ...(reviewOutdated
+          ? { contentVersion: { increment: 1 as const } }
+          : {}),
       },
     });
 
-    if (reviewOutdated && existing.review) {
-      await tx.review.delete({
-        where: { id: existing.review.id },
+    if (updated.count !== 1) {
+      return false;
+    }
+
+    if (reviewOutdated) {
+      await tx.review.deleteMany({
+        where: { snippetId: input.id },
       });
     }
+
+    return true;
   });
+
+  if (!saved) {
+    return {
+      ok: false,
+      errors: {
+        form: ["The snippet changed in another request. Refresh and try again."],
+      },
+    };
+  }
 
   revalidatePath("/");
   revalidatePath(`/snippets/${input.id}`);
 
-  return { ok: true };
+  return {
+    ok: true,
+    contentVersion: input.expectedVersion + (reviewOutdated ? 1 : 0),
+  };
 }
