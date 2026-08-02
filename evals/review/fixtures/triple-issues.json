@@ -1,0 +1,52 @@
+{
+  "id": "triple-issues",
+  "title": "Auth helper with three issues",
+  "language": "typescript",
+  "code": "export function sumAuthenticatedScores(\n  db: { query: (sql: string) => unknown },\n  username: string,\n  password: string,\n  scores: number[],\n): number {\n  const unusedFlag = true;\n  const sql =\n    \"SELECT id FROM users WHERE name = '\" +\n    username +\n    \"' AND password = '\" +\n    password +\n    \"'\";\n  db.query(sql);\n\n  let total = 0;\n  for (let i = 0; i <= scores.length; i++) {\n    total += scores[i]!;\n  }\n  return total;\n}\n",
+  "expectations": [
+    {
+      "category": "STYLE",
+      "severityAtLeast": "INFO",
+      "lineNear": 7,
+      "descriptionIncludes": ["unused", "dead", "remove", "never"]
+    },
+    {
+      "category": "SECURITY",
+      "severityAtLeast": "WARNING",
+      "lineNear": 8,
+      "descriptionIncludes": ["inject", "sql", "parameter", "prepared", "password", "sanitize"]
+    },
+    {
+      "category": "BUG",
+      "severityAtLeast": "WARNING",
+      "lineNear": 17,
+      "descriptionIncludes": ["index", "range", "off-by", "bound", "length", "out of"]
+    }
+  ],
+  "findings": [
+    {
+      "startLine": 7,
+      "endLine": 7,
+      "severity": "INFO",
+      "category": "STYLE",
+      "description": "`unusedFlag` is assigned but never read. Remove it to keep the function focused.",
+      "suggestedFix": "-  const unusedFlag = true;\n+"
+    },
+    {
+      "startLine": 8,
+      "endLine": 14,
+      "severity": "CRITICAL",
+      "category": "SECURITY",
+      "description": "Username and password are interpolated into SQL, enabling injection and leaking credentials into query logs. Use parameterized queries and never pass raw passwords into SQL strings.",
+      "suggestedFix": "-  const sql =\n-    \"SELECT id FROM users WHERE name = '\" +\n-    username +\n-    \"' AND password = '\" +\n-    password +\n-    \"'\";\n-  db.query(sql);\n+  db.query(\n+    \"SELECT id FROM users WHERE name = ? AND password_hash = ?\",\n+    [username, hashPassword(password)],\n+  );"
+    },
+    {
+      "startLine": 17,
+      "endLine": 17,
+      "severity": "WARNING",
+      "category": "BUG",
+      "description": "The loop condition `i <= scores.length` reads one element past the end of the array.",
+      "suggestedFix": "-  for (let i = 0; i <= scores.length; i++) {\n+  for (let i = 0; i < scores.length; i++) {"
+    }
+  ]
+}

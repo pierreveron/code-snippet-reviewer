@@ -1,0 +1,38 @@
+{
+  "id": "mixed-security-bug",
+  "title": "Lookup with SQL injection and off-by-one",
+  "language": "javascript",
+  "code": "function getUserTotal(db, userId, scores) {\n  const query = \"SELECT * FROM users WHERE id = '\" + userId + \"'\";\n  const user = db.query(query);\n  let total = 0;\n  for (let i = 0; i <= scores.length; i++) {\n    total += scores[i];\n  }\n  return { user, total };\n}\n",
+  "expectations": [
+    {
+      "category": "SECURITY",
+      "severityAtLeast": "WARNING",
+      "lineNear": 2,
+      "descriptionIncludes": ["inject", "sql", "parameter", "prepared", "sanitize"]
+    },
+    {
+      "category": "BUG",
+      "severityAtLeast": "WARNING",
+      "lineNear": 5,
+      "descriptionIncludes": ["index", "range", "off-by", "bound", "length", "out of"]
+    }
+  ],
+  "findings": [
+    {
+      "startLine": 2,
+      "endLine": 3,
+      "severity": "CRITICAL",
+      "category": "SECURITY",
+      "description": "User input is concatenated into a SQL string, which allows SQL injection. Use a parameterized query instead.",
+      "suggestedFix": "-  const query = \"SELECT * FROM users WHERE id = '\" + userId + \"'\";\n-  const user = db.query(query);\n+  const user = db.query(\"SELECT * FROM users WHERE id = ?\", [userId]);"
+    },
+    {
+      "startLine": 5,
+      "endLine": 5,
+      "severity": "WARNING",
+      "category": "BUG",
+      "description": "Loop uses `i <= scores.length`, so the final iteration reads past the end of the array (off-by-one).",
+      "suggestedFix": "-  for (let i = 0; i <= scores.length; i++) {\n+  for (let i = 0; i < scores.length; i++) {"
+    }
+  ]
+}

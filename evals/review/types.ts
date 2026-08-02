@@ -18,15 +18,27 @@ export const expectationSchema = z.object({
   descriptionIncludes: z.array(z.string().min(1)).optional(),
 });
 
+/** Optional completed findings for `db:seed` (ignored by live evals). */
+export const seedFindingSchema = z.object({
+  startLine: z.number().int().positive(),
+  endLine: z.number().int().positive().nullable().optional(),
+  severity: findingSeveritySchema,
+  category: findingCategorySchema,
+  description: z.string().min(1),
+  suggestedFix: z.string().nullable().optional(),
+});
+
 export const fixtureSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   language: z.string().min(1),
   code: z.string().min(1),
   expectations: z.array(expectationSchema),
+  findings: z.array(seedFindingSchema).optional(),
 });
 
 export type Expectation = z.infer<typeof expectationSchema>;
+export type SeedFinding = z.infer<typeof seedFindingSchema>;
 export type ReviewFixture = z.infer<typeof fixtureSchema>;
 
 export function severityMeetsMinimum(
