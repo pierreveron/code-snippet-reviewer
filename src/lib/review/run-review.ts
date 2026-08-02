@@ -47,7 +47,6 @@ export async function runReview(
 
   try {
     const findings = await analyzeSnippet({
-      title: snippet.title,
       language: snippet.language,
       code: snippet.code,
     });

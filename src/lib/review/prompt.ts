@@ -1,5 +1,4 @@
 type SnippetPromptInput = {
-  title: string;
   language: string;
   code: string;
 };
@@ -17,14 +16,13 @@ export function buildSystemPrompt() {
   ].join(" ");
 }
 
-export function buildUserPrompt({ title, language, code }: SnippetPromptInput) {
+export function buildUserPrompt({ language, code }: SnippetPromptInput) {
   const numbered = code
     .split("\n")
     .map((line, index) => `${String(index + 1).padStart(4, " ")} | ${line}`)
     .join("\n");
 
   return [
-    `Title: ${title}`,
     `Language: ${language}`,
     "",
     "Code (line-numbered):",

@@ -104,7 +104,6 @@ async function main() {
 
     try {
       const findings = await analyzeSnippet({
-        title: fixture.title,
         language: fixture.language,
         code: fixture.code,
       });

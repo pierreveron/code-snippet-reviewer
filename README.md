@@ -111,8 +111,9 @@ Layers:
 2. **Model** (`model.ts`) — reads `REVIEW_MODEL` as `provider:modelId` and
    resolves a Vercel AI SDK model (`openai` or `anthropic`).
 3. **Analyze** (`analyze.ts`) — pure LLM call via `generateText` +
-   `Output.object`. Takes title, language, and code; returns sanitized findings
-   (no database). Line numbers outside the snippet are dropped or clamped.
+   `Output.object`. Takes language and code only (not the snippet title, which
+   could bias findings); returns sanitized findings (no database). Line numbers
+   outside the snippet are dropped or clamped.
 4. **Orchestrator** (`run-review.ts`) — full lifecycle against Prisma:
    create/reset a `Review` as `IN_PROGRESS`, call `analyzeSnippet`, then write
    `Finding` rows and mark `COMPLETED`, or `FAILED` with an error message.

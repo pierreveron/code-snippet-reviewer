@@ -9,7 +9,6 @@ import {
 } from "@/lib/review/schema";
 
 export type AnalyzeSnippetInput = {
-  title: string;
   language: string;
   code: string;
 };
