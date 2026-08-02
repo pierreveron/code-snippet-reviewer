@@ -20,3 +20,9 @@ export function formatLanguageLabel(language: string): string {
   if (!language) return "Unknown";
   return language.charAt(0).toUpperCase() + language.slice(1);
 }
+
+/** Normalize stored language values to a known combobox option. */
+export function normalizeLanguageValue(language: string): string {
+  const match = LANGUAGES.find((item) => item.value === language.toLowerCase());
+  return match?.value ?? "other";
+}
