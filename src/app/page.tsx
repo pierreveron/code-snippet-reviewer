@@ -1,9 +1,25 @@
+import { Suspense } from "react";
+
 import { NewSnippetButton } from "@/components/NewSnippetButton";
 import { SnippetList } from "@/components/SnippetList";
+import {
+  hasActiveSnippetFilters,
+  parseSnippetFilters,
+} from "@/lib/snippet-filters";
 import { listSnippets } from "@/lib/snippets";
 
-export default async function Home() {
-  const snippets = await listSnippets();
+type HomeProps = {
+  searchParams: Promise<{
+    language?: string | string[];
+    status?: string | string[];
+  }>;
+};
+
+export default async function Home({ searchParams }: HomeProps) {
+  const params = await searchParams;
+  const filters = parseSnippetFilters(params);
+  const snippets = await listSnippets(filters);
+  const filtersActive = hasActiveSnippetFilters(filters);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-12">
@@ -21,7 +37,9 @@ export default async function Home() {
         <NewSnippetButton />
       </div>
 
-      <SnippetList snippets={snippets} />
+      <Suspense fallback={null}>
+        <SnippetList snippets={snippets} filtersActive={filtersActive} />
+      </Suspense>
     </div>
   );
 }

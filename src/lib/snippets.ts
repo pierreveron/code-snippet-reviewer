@@ -3,13 +3,16 @@ import "server-only";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 
-import type {
-  FindingCategory,
-  FindingResolution,
-  FindingSeverity,
+import type { Prisma } from "@/generated/prisma/client";
+import {
   ReviewStatus,
+  type FindingCategory,
+  type FindingResolution,
+  type FindingSeverity,
 } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
+import type { DisplayReviewStatus } from "@/lib/review-status";
+import type { SnippetListFilters } from "@/lib/snippet-filters";
 
 export type SnippetListItem = {
   id: string;
@@ -48,11 +51,53 @@ const severityOrder: Record<FindingSeverity, number> = {
   INFO: 2,
 };
 
-export async function listSnippets(): Promise<SnippetListItem[]> {
+function reviewStatusWhere(
+  status: DisplayReviewStatus,
+): Prisma.SnippetWhereInput {
+  switch (status) {
+    case "not_reviewed":
+      return { review: { is: null } };
+    case "in_progress":
+      return { review: { is: { status: ReviewStatus.IN_PROGRESS } } };
+    case "reviewed":
+      return { review: { is: { status: ReviewStatus.COMPLETED } } };
+    case "failed":
+      return { review: { is: { status: ReviewStatus.FAILED } } };
+  }
+}
+
+function snippetListWhere(
+  filters: SnippetListFilters,
+): Prisma.SnippetWhereInput | undefined {
+  const clauses: Prisma.SnippetWhereInput[] = [];
+
+  if (filters.language) {
+    clauses.push({ language: filters.language });
+  }
+
+  if (filters.status) {
+    clauses.push(reviewStatusWhere(filters.status));
+  }
+
+  if (clauses.length === 0) {
+    return undefined;
+  }
+
+  if (clauses.length === 1) {
+    return clauses[0];
+  }
+
+  return { AND: clauses };
+}
+
+export async function listSnippets(
+  filters: SnippetListFilters = {},
+): Promise<SnippetListItem[]> {
   // better-sqlite3 can resolve during prerender; wait for a request first.
   await connection();
 
   const snippets = await db.snippet.findMany({
+    where: snippetListWhere(filters),
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
