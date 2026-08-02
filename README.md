@@ -79,8 +79,7 @@ flowchart LR
   structured findings; swapping models later is a `REVIEW_MODEL` change
   (OpenAI or Anthropic) without rewriting the review pipeline.
 - **Review held in the request** — the run waits on the LLM inside one server
-  action (not a job queue). Keeps the control flow linear; tradeoffs are covered
-  below in the review lifecycle.
+  action rather than a background job queue (see Review process).
 
 ### User flows
 
@@ -113,126 +112,51 @@ flowchart LR
 - `prisma/` — schema and migrations
 - `evals/` / `scripts/` — optional fixtures, CLI, and live evals
 
+### Review process
 
+#### Producing structured findings
 
-## Review lifecycle
+1. Send the snippet’s **language** and **line-numbered code** (not the title,
+   to avoid bias from the user’s label).
+2. Ask for findings: line range, severity, category, description, and optional
+   **replacement lines** for that range — new lines, an empty list to delete the
+   range, or none if there is no safe automatic fix.
+3. Sanitize the response (invalid lines, ranges, whitespace).
+4. For each finding with replacement lines, build a patch: **before** = those
+   lines as they are in the snippet today, **after** = the model’s replacement.
+5. Persist the findings (and patches) with the review.
 
+The model only proposes the new lines; the app records the current source itself.
+That keeps applies exact and avoids fragile textual diffs.
 
+#### Running a review
 
-### 1. Structured model output
+The UI starts a review, the server marks it in progress, calls the LLM, then
+persists findings or an error — all inside one server-action request. The page
+shows progress for that wait; there is no background worker or polling.
 
-`src/lib/review/analyze.ts` calls the configured model through the Vercel AI SDK
-with a Zod structured-output schema. The model receives the language and code,
-but not the title, to avoid bias from user-provided labels.
+**Trade-off:** this keeps the flow easy to reason about (one request, one
+outcome). The cost is a long-held HTTP request: slow models or proxies may time
+out, and closing or reloading the page mid-run can leave the review looking
+in-progress until the user retries. A job queue with polling or streaming would
+handle that better in production.
 
-Each model finding contains:
+On success we save findings as completed; on provider/model failure we save an
+error the user can retry. If the snippet was edited or a newer review started
+meanwhile, that run’s result is discarded so stale findings never land.
 
-- a 1-based `startLine` and optional inclusive `endLine`;
-- `severity`: `CRITICAL`, `WARNING`, or `INFO`;
-- `category`: `BUG`, `SECURITY`, `PERFORMANCE`, `STYLE`, or `OTHER`;
-- a plain-language description;
-- `replacementLines`, or `null` when no safe automatic change is available.
+#### Applying or dismissing
 
-The analyzer drops findings whose start line is outside the snippet, clamps
-invalid end lines, trims descriptions, and aligns replacement indentation.
+- **Dismiss** marks a finding resolved without changing the code.
+- **Apply** checks the stored `before` still matches, replaces it with `after`,
+  and updates finding positions in one transaction. Later non-overlapping
+  findings stay usable; overlapping ones become stale and need a re-review.
 
-### 2. Lossless suggestion patches
+#### Statuses (short)
 
-The model only proposes replacement lines. The application captures the exact
-source range itself and stores a versioned JSON patch:
+Reviews: not reviewed → in progress → completed or failed.
 
-```json
-{
-  "version": 1,
-  "before": ["  return a - b;"],
-  "after": ["  return a + b;"]
-}
-```
-
-Arrays make deletion (`after: []`) different from one blank replacement line
-(`after: [""]`) and preserve source lines beginning with `+` or `-`. The patch
-therefore has no ambiguous textual diff syntax.
-
-### 3. Starting and completing a review
-
-`src/lib/review/run-review.ts` owns the database lifecycle:
-
-```text
-Snippet detail UI
-    │ runSnippetReview(snippetId)
-    ▼
-Review = IN_PROGRESS + sourceVersion + unique runToken
-    │
-    ▼
-analyzeSnippet(language, code) ──► AI SDK ──► REVIEW_MODEL
-    │
-    ├── matching token and content version ──► COMPLETED + findings
-    ├── model/provider error ────────────────► FAILED + error message
-    └── newer run or edited source ─────────► SUPERSEDED, result discarded
-```
-
-The review captures the snippet's `contentVersion` as `sourceVersion`. Before
-writing either success or failure, it verifies:
-
-- its unique `runToken` still owns the review;
-- the review still targets the captured source version;
-- the snippet still has that content version.
-
-Consequently, an older concurrent run cannot replace a newer run, and an LLM
-response for code edited while the model was working cannot create stale
-findings.
-
-### 4. Applying a suggestion safely
-
-`src/lib/review/apply-suggestion.ts` performs an optimistic, transactional write:
-
-- `Snippet.contentVersion` is the compare-and-swap value for source changes.
-- `Review.sourceVersion` identifies the code represented by its findings.
-- The selected finding must still be `OPEN`.
-- The patch's frozen `before` block must still match exactly.
-- Code replacement, version increments, finding resolution, stale marking, and
-line shifts either all commit or all roll back.
-
-After a successful apply, both versions advance together. This preserves the
-remaining compatible findings without pretending that overlapping findings are
-still safe.
-
-### Status semantics
-
-Review statuses:
-
-- `IN_PROGRESS` — the current run has started and prior findings were cleared.
-- `COMPLETED` — the findings, including an empty list, were persisted.
-- `FAILED` — the current run failed and its error is available to the UI.
-- `SUPERSEDED` — an in-memory result used when this run lost a token or version
-race; it is not persisted over the winning review.
-
-Finding resolutions:
-
-- `OPEN` — available to inspect, dismiss, and optionally apply.
-- `ACCEPTED` — its suggestion was applied successfully.
-- `DISMISSED` — the user chose not to act on it.
-- `STALE` — another applied change overlapped its source range; a new review is
-required.
-
-
-
-### Main implementation boundaries
-
-1. `src/components/SnippetDetailContent.tsx` coordinates editor, status, local
-  canonical state, and page refreshes.
-2. `src/components/FindingsPanel.tsx` owns finding action transitions, errors,
-  selection, and keyboard navigation.
-3. `src/app/actions/reviews.ts` exposes review, apply, and dismiss server actions.
-4. `src/lib/review/analyze.ts` handles model output and sanitization without
-  database access.
-5. `src/lib/review/run-review.ts` orchestrates review persistence and concurrent
-  runs.
-6. `src/lib/review/apply-suggestion.ts` validates and transactionally applies
-  patches.
-7. `src/lib/review/suggestion-patch.ts` validates the stored patch format.
-8. `src/app/actions/snippets.ts` invalidates reviews when code or language
-  changes.
+Findings: open → accepted, dismissed, or stale.
 
 
 
