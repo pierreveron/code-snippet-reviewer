@@ -16,7 +16,7 @@ export function extractLineRange(
 }
 
 /**
- * Rebase replacement indent onto the original block's first-line indent.
+ * Rebase replacement indent onto the original block's first non-empty line.
  *
  * Models often under-indent (`return x`) or over-indent (`   console.log`)
  * relative to the targeted lines. Preserve relative indentation inside the
@@ -32,7 +32,9 @@ export function alignReplacementIndent(
 
   const hadTrailingNewline = replacement.endsWith("\n");
   const replacementLines = replacement.replace(/\n$/, "").split("\n");
-  const originalIndent = leadingWhitespace(originalLines[0] ?? "");
+  const originalIndent = leadingWhitespace(
+    originalLines.find((line) => line.trim().length > 0) ?? "",
+  );
 
   const firstNonEmpty = replacementLines.find((line) => line.trim().length > 0);
   if (!firstNonEmpty) {
