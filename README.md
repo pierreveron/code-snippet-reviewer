@@ -16,6 +16,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 cp .env.example .env
+# Set OPENAI_API_KEY (or ANTHROPIC_API_KEY) for AI reviews
 npm install
 npm run db:generate
 npm run db:deploy
@@ -27,6 +28,20 @@ Create a migration after changing `prisma/schema.prisma`:
 ```bash
 npm run db:migrate -- --name describe_your_change
 ```
+
+## Review CLI
+
+Reviews run through a shared library (`src/lib/review`) — not wired to the UI yet.
+
+```bash
+# Review a snippet already in the local database
+npm run review -- <snippetId>
+
+# Live LLM fixture evals (costs tokens)
+npm run eval:review
+```
+
+Default model: `REVIEW_MODEL=openai:gpt-5.6-luna` (override in `.env`).
 
 ## Database storage
 
