@@ -335,15 +335,17 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
           ) : null}
         </div>
 
-        <aside className="w-full shrink-0 md:w-[22rem] lg:w-[26rem]">
-          <FindingsPanel
-            findings={findings}
-            selectedFindingId={selectedFindingId}
-            onSelectFinding={setSelectedFindingId}
-            onAccepted={handleAccepted}
-            onDismissed={handleDismissed}
-          />
-        </aside>
+        {!isEditing ? (
+          <aside className="w-full shrink-0 md:w-[22rem] lg:w-[26rem]">
+            <FindingsPanel
+              findings={findings}
+              selectedFindingId={selectedFindingId}
+              onSelectFinding={setSelectedFindingId}
+              onAccepted={handleAccepted}
+              onDismissed={handleDismissed}
+            />
+          </aside>
+        ) : null}
       </div>
     </>
   );
