@@ -24,6 +24,7 @@ enum FindingCategory {
   SECURITY
   PERFORMANCE
   STYLE
+  OTHER
 }
 
 enum FindingResolution {
