@@ -12,6 +12,7 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DATABASE_URL=file:/tmp/build.db
 RUN npm run db:generate && npm run build
 
 FROM base AS runner
