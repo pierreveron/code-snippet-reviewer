@@ -1,15 +1,21 @@
 import { randomUUID } from "node:crypto";
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import type { FindingResolution } from "@/generated/prisma/enums";
 import { analyzeSnippet } from "@/lib/review/analyze";
 import type { ReviewFinding } from "@/lib/review/schema";
+
+export type PersistedReviewFinding = ReviewFinding & {
+  id: string;
+  resolution: FindingResolution;
+};
 
 export type RunReviewResult = {
   reviewId: string;
   snippetId: string;
   /** SUPERSEDED: this run lost the runToken race and did not persist. */
   status: "COMPLETED" | "FAILED" | "SUPERSEDED";
-  findings: ReviewFinding[];
+  findings: PersistedReviewFinding[];
   errorMessage: string | null;
 };
 
@@ -66,7 +72,8 @@ export async function runReview(
       code: snippet.code,
     });
 
-    // true = this run still owns runToken and wrote the result
+    // null means this run lost ownership; otherwise return the canonical rows
+    // written by this transaction so the client can update without a refresh gap.
     const persisted = await db.$transaction(async (tx) => {
       const updated = await tx.review.updateMany({
         where: {
@@ -86,7 +93,7 @@ export async function runReview(
         await tx.review.deleteMany({
           where: { id: review.id, runToken },
         });
-        return false;
+        return null;
       }
 
       await tx.finding.createMany({
@@ -101,7 +108,19 @@ export async function runReview(
         })),
       });
 
-      return true;
+      return tx.finding.findMany({
+        where: { reviewId: review.id },
+        select: {
+          id: true,
+          startLine: true,
+          endLine: true,
+          severity: true,
+          category: true,
+          description: true,
+          suggestionPatch: true,
+          resolution: true,
+        },
+      });
     });
 
     if (!persisted) {
@@ -112,7 +131,7 @@ export async function runReview(
       reviewId: review.id,
       snippetId: snippet.id,
       status: "COMPLETED",
-      findings,
+      findings: persisted,
       errorMessage: null,
     };
   } catch (error) {

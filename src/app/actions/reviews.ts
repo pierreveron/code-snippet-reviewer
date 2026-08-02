@@ -9,13 +9,14 @@ import {
   applyFindingSuggestion,
   type ApplySuggestionResult,
 } from "@/lib/review/apply-suggestion";
+import type { SnippetFinding } from "@/lib/snippets";
 
 export type RunSnippetReviewResult =
   | {
       ok: true;
       status: "COMPLETED" | "FAILED" | "SUPERSEDED";
       errorMessage: string | null;
-      findingCount: number;
+      findings: SnippetFinding[];
     }
   | { ok: false; error: string };
 
@@ -43,7 +44,14 @@ export async function runSnippetReview(
       ok: true,
       status: result.status,
       errorMessage: result.errorMessage,
-      findingCount: result.findings.length,
+      findings: [...result.findings].sort((a, b) => {
+        if (a.startLine !== b.startLine) {
+          return a.startLine - b.startLine;
+        }
+
+        const severityOrder = { CRITICAL: 0, WARNING: 1, INFO: 2 };
+        return severityOrder[a.severity] - severityOrder[b.severity];
+      }),
     };
   } catch (error) {
     const message =

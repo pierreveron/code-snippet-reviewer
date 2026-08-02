@@ -342,14 +342,27 @@ describe("versioned review runs", () => {
     const second = runReview(db, "snippet", async () => {
       secondStarted.resolve();
       await secondFinish.promise;
-      return [];
+      return [
+        {
+          startLine: 1,
+          endLine: null,
+          severity: "WARNING",
+          category: "BUG",
+          description: "Latest finding",
+          suggestionPatch: null,
+        },
+      ];
     });
     await secondStarted.promise;
 
     firstFinish.resolve();
     assert.equal((await first).status, "SUPERSEDED");
     secondFinish.resolve();
-    assert.equal((await second).status, "COMPLETED");
+    const latest = await second;
+    assert.equal(latest.status, "COMPLETED");
+    assert.equal(latest.findings.length, 1);
+    assert.equal(latest.findings[0]?.resolution, "OPEN");
+    assert.ok(latest.findings[0]?.id);
     assert.equal(
       (await db.review.findUniqueOrThrow({ where: { snippetId: "snippet" } }))
         .status,
