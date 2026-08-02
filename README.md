@@ -219,13 +219,17 @@ Findings: open → accepted, dismissed, or stale.
    struggled to find the real issue; I diagnosed it and steered the fix (e.g.
    prefer `npm i` over a brittle `npm ci` path for this setup). With more time
    for production, I’d tighten install/lockfile handling further.
-3. **Database changes** — For schema and data-layer work, I asked the agent
+3. **Library discovery** — AI was really helpful for picking and wiring
+   libraries I wasn’t already familiar with (e.g. CodeMirror for the editor,
+   a diff helper for suggested changes, and similar packages), so I didn’t have
+   to research the ecosystem from scratch.
+4. **Database changes** — For schema and data-layer work, I asked the agent
    directly whenever I needed to add or change something; it updated Prisma /
    migrations and kept that slice moving without me hand-writing each step.
-4. **Triage PR review comments** — On bigger PRs the bots flagged many edge
+5. **Triage PR review comments** — On bigger PRs the bots flagged many edge
    cases. I read each one, asked the agent to explain anything unclear, then
    applied what mattered and skipped noisy or low-value suggestions.
-5. **UI with browser tools** — For the interface, Cursor’s browser access was
+6. **UI with browser tools** — For the interface, Cursor’s browser access was
    especially useful: it can exercise the UI itself, take screenshots, and I
    can point at a specific element in the page when I want a change.
 
