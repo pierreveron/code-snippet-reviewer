@@ -86,7 +86,8 @@ export function FindingItem({
               severityStyles[finding.severity],
             ].join(" ")}
           >
-            {finding.severity.toLowerCase()}
+            {finding.severity.charAt(0) +
+              finding.severity.slice(1).toLowerCase()}
           </span>
           <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">
             {categoryLabels[finding.category]}
