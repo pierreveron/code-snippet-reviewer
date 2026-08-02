@@ -1,21 +1,9 @@
-import { ReviewStatusBadge } from "@/components/ReviewStatusBadge";
+import { SnippetRow } from "@/components/SnippetRow";
 import type { SnippetListItem } from "@/lib/snippets";
 
 type SnippetListProps = {
   snippets: SnippetListItem[];
 };
-
-function formatCreatedAt(date: Date) {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
-
-function formatLanguage(language: string) {
-  if (!language) return "Unknown";
-  return language.charAt(0).toUpperCase() + language.slice(1);
-}
 
 export function SnippetList({ snippets }: SnippetListProps) {
   if (snippets.length === 0) {
@@ -45,25 +33,7 @@ export function SnippetList({ snippets }: SnippetListProps) {
         </thead>
         <tbody className="divide-y divide-border">
           {snippets.map((snippet) => (
-            <tr
-              key={snippet.id}
-              className="transition-colors hover:bg-surface-muted/70"
-            >
-              <td className="px-5 py-3.5 font-semibold text-foreground sm:px-6">
-                {snippet.title}
-              </td>
-              <td className="px-5 py-3.5 sm:px-6">
-                <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-medium text-slate-700">
-                  {formatLanguage(snippet.language)}
-                </span>
-              </td>
-              <td className="px-5 py-3.5 text-muted sm:px-6">
-                {formatCreatedAt(snippet.createdAt)}
-              </td>
-              <td className="px-5 py-3.5 sm:px-6">
-                <ReviewStatusBadge status={snippet.reviewStatus} />
-              </td>
-            </tr>
+            <SnippetRow key={snippet.id} snippet={snippet} />
           ))}
         </tbody>
       </table>
