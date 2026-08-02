@@ -166,7 +166,43 @@ Findings: open → accepted, dismissed, or stale.
 
 ## AI usage log
 
-*To be filled in before submission.*
+### Tools and models
+
+1. **Coding agent (Cursor)** — main environment. Mostly **Grok 4.5** (high);
+   sometimes **GPT-5.6 Sol** (medium or high) for complex tasks and double checking. **Plan mode** was usually used before large changes.
+2. **Voice dictation** — speak freely and dump long prompts with full context
+   instead of typing short, incomplete instructions.
+3. **PR review bots** — Cursor Bugbot and Cubic to catch issues before merging a PR. I would
+   have used Gitar too, but my free trial had ended.
+
+### Examples
+
+1. **Planning from the brief** — Before writing code, I shared the assignment
+   PDF and discussed approach, trade-offs, likely pitfalls, and how to break
+   the project into slices.
+2. **Scaffolding and Docker** — Cursor helped set up Next.js and Docker Compose
+   (I was less familiar with Compose). That mostly worked, but I hit Node /
+   `package-lock.json` mismatches between my Mac and the Linux image. The model
+   struggled to find the real issue; I diagnosed it and steered the fix (e.g.
+   prefer `npm i` over a brittle `npm ci` path for this setup). With more time
+   for production, I’d tighten install/lockfile handling further.
+3. **Database changes** — For schema and data-layer work, I asked the agent
+   directly whenever I needed to add or change something; it updated Prisma /
+   migrations and kept that slice moving without me hand-writing each step.
+4. **Triage PR review comments** — On bigger PRs the bots flagged many edge
+   cases. I read each one, asked the agent to explain anything unclear, then
+   applied what mattered and skipped noisy or low-value suggestions.
+5. **UI with browser tools** — For the interface, Cursor’s browser access was
+   especially useful: it can exercise the UI itself, take screenshots, and I
+   can point at a specific element in the page when I want a change.
+
+### Overall impression
+
+- Great sparring partner for design and trade-offs.
+- Speeds up planning, scaffolding, database iteration, and UI work.
+- Less reliable on environment / lockfile conflicts — I had to own the diagnosis.
+- Review bots were extremely useful — they catch edge cases the model often
+  misses while planning or implementing (still filter signal from noise).
 
 ## Appendix: CLI, seeding, and debugging
 
