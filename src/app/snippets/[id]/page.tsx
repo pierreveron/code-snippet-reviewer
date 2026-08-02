@@ -19,7 +19,7 @@ export default async function SnippetDetailPage({
   const snippet = await getSnippet(id);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-12">
+    <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
       <SnippetDetailContent snippet={snippet} />
     </div>
   );
