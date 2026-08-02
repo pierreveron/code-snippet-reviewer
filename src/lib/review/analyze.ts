@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 
 import { resolveReviewModel } from "@/lib/review/model";
 import { buildSystemPrompt, buildUserPrompt } from "@/lib/review/prompt";
@@ -48,7 +48,7 @@ export function sanitizeFindings(
     }
 
     const suggestedFix = finding.suggestedFix?.trim() || null;
-    
+
     sanitized.push({
       startLine: finding.startLine,
       endLine,
@@ -71,15 +71,20 @@ export async function analyzeSnippet(
 ): Promise<ReviewFinding[]> {
   const model = resolveReviewModel();
 
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model,
-    schema: reviewAnalysisSchema,
-    schemaName: "CodeReviewFindings",
-    schemaDescription:
-      "Structured code review findings for an ad-hoc snippet",
-    system: buildSystemPrompt(),
+    output: Output.object({
+      schema: reviewAnalysisSchema,
+      name: "CodeReviewFindings",
+      description: "Structured code review findings for an ad-hoc snippet",
+    }),
+    instructions: buildSystemPrompt(),
     prompt: buildUserPrompt(input),
   });
 
-  return sanitizeFindings(object.findings, input.code);
+  if (!output) {
+    throw new Error("Model returned no structured review output");
+  }
+
+  return sanitizeFindings(output.findings, input.code);
 }
