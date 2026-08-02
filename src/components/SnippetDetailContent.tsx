@@ -109,10 +109,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     };
   }, [isEditing, selectedFinding]);
 
-  const reviewing =
-    isReviewPending || snippet.reviewStatus === "IN_PROGRESS";
-
-  const displayReviewStatus = reviewing
+  const displayReviewStatus = isReviewPending
     ? "IN_PROGRESS"
     : localReviewStatus === "COMPLETED"
       ? "COMPLETED"
@@ -258,7 +255,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     reviewActionError ??
     // Prefer local status after a re-run so a COMPLETED result is not masked by
     // stale FAILED props while refresh is in flight. Also hide while reviewing.
-    (!reviewing &&
+    (!isReviewPending &&
     localReviewStatus == null &&
     snippet.reviewStatus === "FAILED"
       ? snippet.reviewErrorMessage
@@ -299,7 +296,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
               <button
                 type="button"
                 onClick={startEditing}
-                disabled={reviewing || isFindingActionPending}
+                disabled={isReviewPending || isFindingActionPending}
                 className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
               >
                 Edit
@@ -307,10 +304,10 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
               <button
                 type="button"
                 onClick={handleRunReview}
-                disabled={reviewing || isFindingActionPending}
+                disabled={isReviewPending || isFindingActionPending}
                 className="inline-flex h-8 items-center justify-center rounded-md bg-accent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {reviewing ? "Reviewing…" : "Run review"}
+                {isReviewPending ? "Reviewing…" : "Run review"}
               </button>
             </>
           )}
@@ -386,7 +383,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
         </div>
       ) : null}
 
-      {reviewing ? (
+      {isReviewPending ? (
         <div className="mb-6 rounded-lg border border-teal-200 bg-accent-soft/60 px-4 py-3 text-sm text-accent">
           Review in progress — analyzing the snippet with the configured model…
         </div>
