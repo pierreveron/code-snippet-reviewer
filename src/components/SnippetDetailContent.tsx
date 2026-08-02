@@ -436,12 +436,6 @@ export function SnippetDetailContent({
         </div>
       ) : null}
 
-      {isReviewPending ? (
-        <div className="mb-6 rounded-lg border border-accent/25 bg-accent-soft/60 px-4 py-3 text-sm text-accent">
-          Review in progress — analyzing the snippet with the configured model…
-        </div>
-      ) : null}
-
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
         <div className="min-w-0 flex-1">
           <CodeEditor
