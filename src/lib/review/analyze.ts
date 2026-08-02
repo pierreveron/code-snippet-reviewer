@@ -1,12 +1,15 @@
 import { generateText, Output } from "ai";
 
+import { alignReplacementLines, extractLineRange } from "@/lib/review/apply-fix";
 import { enableReviewDevtools } from "@/lib/review/devtools";
 import { resolveReviewModel } from "@/lib/review/model";
 import { buildSystemPrompt, buildUserPrompt } from "@/lib/review/prompt";
 import {
   reviewAnalysisSchema,
+  type ModelReviewFinding,
   type ReviewFinding,
 } from "@/lib/review/schema";
+import { encodeSuggestionPatch } from "@/lib/review/suggestion-patch";
 
 export type AnalyzeSnippetInput = {
   language: string;
@@ -20,9 +23,22 @@ function lineCount(code: string) {
   return code.split("\n").length;
 }
 
+export function normalizeSuggestedFix(
+  replacementLines: string[],
+  code: string,
+  startLine: number,
+  endLine: number | null,
+): string {
+  const rangeOriginal = extractLineRange(code, startLine, endLine);
+  const before = rangeOriginal.split("\n");
+  const after = alignReplacementLines(before, replacementLines);
+
+  return encodeSuggestionPatch({ before, after });
+}
+
 /** Drop / clamp findings that point outside the snippet. */
 export function sanitizeFindings(
-  findings: ReviewFinding[],
+  findings: ModelReviewFinding[],
   code: string,
 ): ReviewFinding[] {
   const totalLines = lineCount(code);
@@ -47,7 +63,14 @@ export function sanitizeFindings(
       }
     }
 
-    const suggestedFix = finding.suggestedFix?.trim() || null;
+    const suggestionPatch = finding.replacementLines !== null
+      ? normalizeSuggestedFix(
+          finding.replacementLines,
+          code,
+          finding.startLine,
+          endLine,
+        )
+      : null;
 
     sanitized.push({
       startLine: finding.startLine,
@@ -55,7 +78,7 @@ export function sanitizeFindings(
       severity: finding.severity,
       category: finding.category,
       description: finding.description.trim(),
-      suggestedFix,
+      suggestionPatch,
     });
   }
 

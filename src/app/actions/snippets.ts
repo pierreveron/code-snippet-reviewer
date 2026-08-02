@@ -6,18 +6,18 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import {
   createSnippetSchema,
-  updateSnippetMetadataSchema,
+  updateSnippetSchema,
   type CreateSnippetFieldErrors,
-  type UpdateSnippetMetadataFieldErrors,
+  type UpdateSnippetFieldErrors,
 } from "@/lib/snippet-schema";
 
 export type CreateSnippetResult =
   | { ok: true }
   | { ok: false; errors: CreateSnippetFieldErrors };
 
-export type UpdateSnippetMetadataResult =
-  | { ok: true }
-  | { ok: false; errors: UpdateSnippetMetadataFieldErrors };
+export type UpdateSnippetResult =
+  | { ok: true; contentVersion: number }
+  | { ok: false; errors: UpdateSnippetFieldErrors };
 
 export async function createSnippet(input: {
   title: string;
@@ -55,14 +55,17 @@ export async function createSnippet(input: {
   redirect(`/snippets/${snippet.id}`);
 }
 
-export async function updateSnippetMetadata(input: {
+export async function updateSnippet(input: {
   id: string;
   title: string;
   language: string;
-}): Promise<UpdateSnippetMetadataResult> {
-  const parsed = updateSnippetMetadataSchema.safeParse({
+  code: string;
+  expectedVersion: number;
+}): Promise<UpdateSnippetResult> {
+  const parsed = updateSnippetSchema.safeParse({
     title: input.title,
     language: input.language,
+    code: input.code,
   });
 
   if (!parsed.success) {
@@ -72,28 +75,82 @@ export async function updateSnippetMetadata(input: {
     };
   }
 
-  const existing = await db.snippet.findUnique({
-    where: { id: input.id },
-    select: { id: true },
-  });
+  try {
+    const existing = await db.snippet.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        code: true,
+        language: true,
+        contentVersion: true,
+      },
+    });
 
-  if (!existing) {
+    if (!existing) {
+      return {
+        ok: false,
+        errors: { title: ["Snippet not found"] },
+      };
+    }
+
+    // Code/language changes invalidate line-bound findings — drop the review.
+    const reviewOutdated =
+      existing.code !== parsed.data.code ||
+      existing.language !== parsed.data.language;
+
+    const saved = await db.$transaction(async (tx) => {
+      const updated = await tx.snippet.updateMany({
+        where: {
+          id: input.id,
+          contentVersion: input.expectedVersion,
+        },
+        data: {
+          title: parsed.data.title,
+          language: parsed.data.language,
+          code: parsed.data.code,
+          ...(reviewOutdated
+            ? { contentVersion: { increment: 1 as const } }
+            : {}),
+        },
+      });
+
+      if (updated.count !== 1) {
+        return false;
+      }
+
+      if (reviewOutdated) {
+        await tx.review.deleteMany({
+          where: { snippetId: input.id },
+        });
+      }
+
+      return true;
+    });
+
+    if (!saved) {
+      return {
+        ok: false,
+        errors: {
+          form: [
+            "The snippet changed in another request. Refresh and try again.",
+          ],
+        },
+      };
+    }
+
+    revalidatePath("/");
+    revalidatePath(`/snippets/${input.id}`);
+
+    return {
+      ok: true,
+      contentVersion: input.expectedVersion + (reviewOutdated ? 1 : 0),
+    };
+  } catch {
     return {
       ok: false,
-      errors: { title: ["Snippet not found"] },
+      errors: {
+        form: ["Couldn't save the snippet. Please try again."],
+      },
     };
   }
-
-  await db.snippet.update({
-    where: { id: input.id },
-    data: {
-      title: parsed.data.title,
-      language: parsed.data.language,
-    },
-  });
-
-  revalidatePath("/");
-  revalidatePath(`/snippets/${input.id}`);
-
-  return { ok: true };
 }

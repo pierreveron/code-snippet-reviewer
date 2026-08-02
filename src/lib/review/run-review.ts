@@ -1,15 +1,21 @@
 import { randomUUID } from "node:crypto";
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import type { FindingResolution } from "@/generated/prisma/enums";
 import { analyzeSnippet } from "@/lib/review/analyze";
 import type { ReviewFinding } from "@/lib/review/schema";
+
+export type PersistedReviewFinding = ReviewFinding & {
+  id: string;
+  resolution: FindingResolution;
+};
 
 export type RunReviewResult = {
   reviewId: string;
   snippetId: string;
   /** SUPERSEDED: this run lost the runToken race and did not persist. */
   status: "COMPLETED" | "FAILED" | "SUPERSEDED";
-  findings: ReviewFinding[];
+  findings: PersistedReviewFinding[];
   errorMessage: string | null;
 };
 
@@ -27,43 +33,55 @@ export type RunReviewResult = {
 export async function runReview(
   db: PrismaClient,
   snippetId: string,
+  analyze: typeof analyzeSnippet = analyzeSnippet,
 ): Promise<RunReviewResult> {
-  const snippet = await db.snippet.findUnique({
-    where: { id: snippetId },
-  });
-
-  if (!snippet) {
-    throw new Error(`Snippet not found: ${snippetId}`);
-  }
-
   const runToken = randomUUID();
+  const { snippet, review } = await db.$transaction(async (tx) => {
+    const currentSnippet = await tx.snippet.findUnique({
+      where: { id: snippetId },
+    });
 
-  const review = await db.review.upsert({
-    where: { snippetId: snippet.id },
-    create: {
-      snippetId: snippet.id,
-      status: "IN_PROGRESS",
-      runToken,
-    },
-    update: {
-      status: "IN_PROGRESS",
-      errorMessage: null,
-      completedAt: null,
-      runToken,
-      findings: { deleteMany: {} },
-    },
+    if (!currentSnippet) {
+      throw new Error(`Snippet not found: ${snippetId}`);
+    }
+
+    const currentReview = await tx.review.upsert({
+      where: { snippetId: currentSnippet.id },
+      create: {
+        snippetId: currentSnippet.id,
+        sourceVersion: currentSnippet.contentVersion,
+        status: "IN_PROGRESS",
+        runToken,
+      },
+      update: {
+        sourceVersion: currentSnippet.contentVersion,
+        status: "IN_PROGRESS",
+        errorMessage: null,
+        completedAt: null,
+        runToken,
+        findings: { deleteMany: {} },
+      },
+    });
+
+    return { snippet: currentSnippet, review: currentReview };
   });
 
   try {
-    const findings = await analyzeSnippet({
+    const findings = await analyze({
       language: snippet.language,
       code: snippet.code,
     });
 
-    // true = this run still owns runToken and wrote the result
+    // null means this run lost ownership; otherwise return the canonical rows
+    // written by this transaction so the client can update without a refresh gap.
     const persisted = await db.$transaction(async (tx) => {
       const updated = await tx.review.updateMany({
-        where: { id: review.id, runToken },
+        where: {
+          id: review.id,
+          runToken,
+          sourceVersion: snippet.contentVersion,
+          snippet: { contentVersion: snippet.contentVersion },
+        },
         data: {
           status: "COMPLETED",
           errorMessage: null,
@@ -72,7 +90,10 @@ export async function runReview(
       });
 
       if (updated.count === 0) {
-        return false;
+        await tx.review.deleteMany({
+          where: { id: review.id, runToken },
+        });
+        return null;
       }
 
       await tx.finding.createMany({
@@ -83,11 +104,23 @@ export async function runReview(
           severity: finding.severity,
           category: finding.category,
           description: finding.description,
-          suggestedFix: finding.suggestedFix,
+          suggestionPatch: finding.suggestionPatch,
         })),
       });
 
-      return true;
+      return tx.finding.findMany({
+        where: { reviewId: review.id },
+        select: {
+          id: true,
+          startLine: true,
+          endLine: true,
+          severity: true,
+          category: true,
+          description: true,
+          suggestionPatch: true,
+          resolution: true,
+        },
+      });
     });
 
     if (!persisted) {
@@ -98,20 +131,35 @@ export async function runReview(
       reviewId: review.id,
       snippetId: snippet.id,
       status: "COMPLETED",
-      findings,
+      findings: persisted,
       errorMessage: null,
     };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown review error";
 
-    const persisted = await db.review.updateMany({
-      where: { id: review.id, runToken },
-      data: {
-        status: "FAILED",
-        errorMessage,
-        completedAt: new Date(),
-      },
+    const persisted = await db.$transaction(async (tx) => {
+      const updated = await tx.review.updateMany({
+        where: {
+          id: review.id,
+          runToken,
+          sourceVersion: snippet.contentVersion,
+          snippet: { contentVersion: snippet.contentVersion },
+        },
+        data: {
+          status: "FAILED",
+          errorMessage,
+          completedAt: new Date(),
+        },
+      });
+
+      if (updated.count === 0) {
+        await tx.review.deleteMany({
+          where: { id: review.id, runToken },
+        });
+      }
+
+      return updated;
     });
 
     if (persisted.count === 0) {

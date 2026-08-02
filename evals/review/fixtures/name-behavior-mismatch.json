@@ -1,0 +1,14 @@
+{
+  "id": "name-behavior-mismatch",
+  "title": "Sum that subtracts",
+  "language": "javascript",
+  "code": "export function sum(a, b) {\n  return a - b;\n}\n",
+  "expectations": [
+    {
+      "category": "BUG",
+      "severityAtLeast": "WARNING",
+      "lineNear": 2,
+      "descriptionIncludes": ["sum", "add", "subtract", "minus", "+", "-"]
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+-- Prisma's SQLite enums are stored as TEXT, so adding STALE requires no
+-- physical table change. This migration records the schema transition.

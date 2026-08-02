@@ -14,7 +14,7 @@ export const findingCategorySchema = z.enum([
  * OpenAI structured outputs require every property in `required`.
  * Use `.nullable()` instead of `.optional()` for absent values.
  */
-export const reviewFindingSchema = z.object({
+const reviewFindingBaseSchema = z.object({
   startLine: z
     .number()
     .int()
@@ -31,15 +31,25 @@ export const reviewFindingSchema = z.object({
   severity: findingSeveritySchema,
   category: findingCategorySchema,
   description: z.string().min(1).describe("Clear explanation of the issue"),
-  suggestedFix: z
-    .string()
+});
+
+export const reviewFindingSchema = reviewFindingBaseSchema.extend({
+  replacementLines: z
+    .array(z.string())
     .nullable()
-    .describe("Concrete fix or improved snippet; null if none"),
+    .describe(
+      "Exact replacement source lines for startLine..endLine. [] deletes the range; [''] leaves one blank line. Null when no safe fix is available.",
+    ),
+});
+
+export const normalizedReviewFindingSchema = reviewFindingBaseSchema.extend({
+  suggestionPatch: z.string().nullable(),
 });
 
 export const reviewAnalysisSchema = z.object({
   findings: z.array(reviewFindingSchema),
 });
 
-export type ReviewFinding = z.infer<typeof reviewFindingSchema>;
+export type ModelReviewFinding = z.infer<typeof reviewFindingSchema>;
+export type ReviewFinding = z.infer<typeof normalizedReviewFindingSchema>;
 export type ReviewAnalysis = z.infer<typeof reviewAnalysisSchema>;
