@@ -84,7 +84,9 @@ the application; it does not create a persistent third database.
 Both the migration service and application access the Docker database as
 UID/GID `1001`, which belongs to the non-root `nextjs` user in the application
 image. Using the same owner keeps the SQLite file writable by the application
-without running it as root.
+without running it as root. Compose runs a one-shot `db-init` service first to
+`chown` the named volume, because Docker mounts new volumes as root and that
+would otherwise make SQLite fail with "attempt to write a readonly database".
 
 ## Project layout
 
