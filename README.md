@@ -82,7 +82,27 @@ flowchart LR
   action (not a job queue). Keeps the control flow linear; tradeoffs are covered
   below in the review lifecycle.
 
+### User flows
 
+**Dashboard**
+
+- Lists snippets with title, language, created date, and review status.
+- Filter by language and review status; sort columns.
+- Click a row to open the snippet page.
+- Create a snippet (title, language, code body). The modal defaults to
+  **Create and Review** (saves then starts an AI review); **Create** saves only.
+
+**Snippet page**
+
+- Edit title, language, and code. Changing language or code discards the current
+  review and its findings; a title-only edit keeps them.
+- Run a review to get findings: each finding is a line-scoped issue with
+  severity, category, description, and optional suggested change.
+- Select a finding to highlight and scroll to its lines in the editor.
+- Apply a suggestion to patch the code, or dismiss a finding. Non-overlapping
+  suggestions can be applied one after another; overlapping ones become stale
+  and need a re-review.
+- If a review fails, the error is shown and the user can retry.
 
 ### Project layout
 
@@ -92,99 +112,6 @@ flowchart LR
 - `src/lib/db.ts` / `create-prisma-client.ts` — Prisma access
 - `prisma/` — schema and migrations
 - `evals/` / `scripts/` — optional fixtures, CLI, and live evals
-
-
-
-## Review experience and user stories
-
-The snippet detail page is the center of the review workflow. It keeps the code,
-review status, selected finding, and pending actions synchronized while server
-actions remain the authority for persisted state.
-
-### Review a snippet
-
-**As a developer, I can run an AI review on the current snippet so that I get
-line-level feedback.**
-
-1. The user opens `/snippets/:id` and clicks **Run review**.
-2. The page clears the previous findings immediately, shows
-  `Review in progress`, and disables editing and duplicate review requests.
-3. The `runSnippetReview` server action calls `runReview` and waits for the LLM
-  result. This is one server-action request; it is not a background job and the
-   page does not poll.
-4. The result is persisted as `COMPLETED`, `FAILED`, or discarded as
-  `SUPERSEDED`.
-5. The page refreshes its server data and displays either the new findings, an
-  empty successful state, or an error that allows the user to retry.
-
-Re-running a review intentionally replaces the previous one. Existing findings
-are deleted when the new run starts so feedback from two analyses is never
-mixed.
-
-### Inspect findings
-
-**As a developer, I can inspect each finding in context so that I understand the
-issue before acting on it.**
-
-- Findings show their line range, severity, category, description, resolution,
-and optional suggested change.
-- Selecting a finding highlights and scrolls to its source range in the editor.
-- The findings list supports arrow keys plus Home and End.
-- The suggested-change view is self-contained: its removed lines come from the
-code captured during the review, not from whatever happens to be in the
-editor later.
-
-
-
-### Apply several suggestions
-
-**As a developer, I can apply compatible suggestions one after another without
-having to run a new review after every change.**
-
-When the user clicks **Apply suggestion**, the server:
-
-1. Verifies that the finding is still `OPEN`, has a valid patch, belongs to a
-  completed review, and was produced from the current content version.
-2. Looks for the patch's exact `before` lines at the finding's expected range.
-  If they moved, it relocates them only when there is exactly one match in the
-   snippet. Missing or ambiguous matches are rejected.
-3. Builds the next code from the patch's `after` lines.
-4. Commits the code, incremented content version, accepted finding, and all
-  affected finding positions in one database transaction.
-5. Returns the canonical code, version, and finding states to the browser. The
-  UI updates immediately and then refreshes server-rendered data.
-
-Findings strictly after the applied range are shifted by the line-count delta.
-This is what lets a second, non-overlapping suggestion remain applicable after
-the first one inserts or removes lines.
-
-Findings that overlap the changed range become `STALE` and display
-**Needs re-review**. They are not applied automatically because their assumptions
-may no longer be valid.
-
-### Dismiss a finding
-
-**As a developer, I can dismiss feedback that I do not want to apply.**
-
-Dismissal changes an `OPEN` finding to `DISMISSED` with a compare-and-swap
-update. If another request resolved it first, the action fails instead of
-overwriting the newer state.
-
-### Edit the snippet
-
-**As a developer, I can edit the title, language, or code while keeping review
-results trustworthy.**
-
-- A title-only edit keeps the current review because it does not change the
-analyzed source.
-- A code or language edit increments `contentVersion` and deletes the review
-and its findings because their line references are no longer trustworthy.
-- Saving sends the version currently displayed by the browser. If another
-request changed the snippet first, the save is rejected and the user is asked
-to refresh.
-- Editing, running a review, and applying/dismissing findings are mutually
-disabled where needed so a late response cannot silently overwrite an active
-draft.
 
 
 
