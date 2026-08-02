@@ -117,6 +117,8 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
 
     startTransition(async () => {
       const nextTitle = title.trim();
+      const reviewOutdated =
+        code !== savedCode || language !== savedLanguage;
       const result = await updateSnippet({
         id: snippet.id,
         title: nextTitle,
@@ -134,6 +136,11 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
       setSavedLanguage(language);
       setSavedCode(code);
       setIsEditing(false);
+      if (reviewOutdated) {
+        setFindings([]);
+        setSelectedFindingId(null);
+        setReviewActionError(null);
+      }
       router.refresh();
     });
   }

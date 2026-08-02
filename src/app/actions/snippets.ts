@@ -76,7 +76,12 @@ export async function updateSnippet(input: {
 
   const existing = await db.snippet.findUnique({
     where: { id: input.id },
-    select: { id: true },
+    select: {
+      id: true,
+      code: true,
+      language: true,
+      review: { select: { id: true } },
+    },
   });
 
   if (!existing) {
@@ -86,13 +91,26 @@ export async function updateSnippet(input: {
     };
   }
 
-  await db.snippet.update({
-    where: { id: input.id },
-    data: {
-      title: parsed.data.title,
-      language: parsed.data.language,
-      code: parsed.data.code,
-    },
+  // Code/language changes invalidate line-bound findings — drop the review.
+  const reviewOutdated =
+    existing.code !== parsed.data.code ||
+    existing.language !== parsed.data.language;
+
+  await db.$transaction(async (tx) => {
+    await tx.snippet.update({
+      where: { id: input.id },
+      data: {
+        title: parsed.data.title,
+        language: parsed.data.language,
+        code: parsed.data.code,
+      },
+    });
+
+    if (reviewOutdated && existing.review) {
+      await tx.review.delete({
+        where: { id: existing.review.id },
+      });
+    }
   });
 
   revalidatePath("/");
