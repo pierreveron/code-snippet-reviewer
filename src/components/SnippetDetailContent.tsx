@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import {
   runSnippetReview,
@@ -18,18 +18,36 @@ import {
   formatLanguageLabel,
   normalizeLanguageValue,
 } from "@/lib/languages";
+import { snippetDetailPath } from "@/lib/snippet-filters";
 import type { UpdateSnippetFieldErrors } from "@/lib/snippet-schema";
 import type { SnippetDetail, SnippetFinding } from "@/lib/snippets";
 
 type SnippetDetailContentProps = {
   snippet: SnippetDetail;
+  /**
+   * When true (Create and Review → never-reviewed snippet), start a review
+   * once on mount. Must not be set for snippets that already have a review.
+   */
+  autoStartReview?: boolean;
+  /** Strip ?review=1 from the URL after mount (even when auto-start is skipped). */
+  clearReviewQuery?: boolean;
+  /** List URL (filters/sort) for the back link; defaults to `/`. */
+  listReturnTo?: string;
 };
+
+/** Survives Strict Mode remounts so Create and Review only kicks off once. */
+const autoStartedReviewIds = new Set<string>();
 
 function defaultSelectedFindingId(findings: SnippetFinding[]): string | null {
   return findings[0]?.id ?? null;
 }
 
-export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
+export function SnippetDetailContent({
+  snippet,
+  autoStartReview = false,
+  clearReviewQuery = false,
+  listReturnTo = "/",
+}: SnippetDetailContentProps) {
   const router = useRouter();
   const initialLanguage = normalizeLanguageValue(snippet.language);
 
@@ -224,6 +242,63 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     });
   }
 
+  useEffect(() => {
+    if (clearReviewQuery) {
+      // Keep returnTo so Back still restores list filters/sort.
+      router.replace(snippetDetailPath(snippet.id, listReturnTo));
+    }
+  }, [clearReviewQuery, listReturnTo, router, snippet.id]);
+
+  useEffect(() => {
+    // Defense in depth: never auto-rerun when a review already exists
+    // (e.g. shared ?review=1 on a completed snippet).
+    if (
+      !autoStartReview ||
+      snippet.reviewStatus !== null ||
+      autoStartedReviewIds.has(snippet.id)
+    ) {
+      return;
+    }
+
+    autoStartedReviewIds.add(snippet.id);
+
+    // New snippets have no findings yet; skip the sync clears used by the
+    // manual Run review button so this effect stays lint-clean.
+    startReviewTransition(async () => {
+      try {
+        const result = await runSnippetReview(snippet.id);
+
+        if (!result.ok) {
+          setReviewActionError(result.error);
+          router.refresh();
+          return;
+        }
+
+        setLocalReviewStatus(result.status);
+        setFindings(result.findings);
+        setSelectedFindingId(defaultSelectedFindingId(result.findings));
+
+        if (result.status === "FAILED") {
+          setReviewActionError(
+            result.errorMessage ?? "Review failed. Please try again.",
+          );
+        } else if (result.status === "SUPERSEDED") {
+          setReviewActionError(
+            result.errorMessage ??
+              "Another review finished first. Refresh to see the latest results.",
+          );
+        } else {
+          setReviewActionError(null);
+        }
+
+        router.refresh();
+      } catch {
+        setReviewActionError("Couldn't run the review. Please try again.");
+        router.refresh();
+      }
+    });
+  }, [autoStartReview, router, snippet.id, snippet.reviewStatus, startReviewTransition]);
+
   function handleAccepted(result: AcceptedFindingState) {
     setCode(result.code);
     setSavedCode(result.code);
@@ -265,7 +340,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     <>
       <div className="mb-6 flex flex-row flex-wrap items-center justify-between gap-3">
         <Link
-          href="/"
+          href={listReturnTo}
           className="text-sm font-medium text-muted transition-colors hover:text-foreground"
         >
           ← Back to snippets
@@ -278,7 +353,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
                 type="button"
                 onClick={cancelEditing}
                 disabled={isPending}
-                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -286,7 +361,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
                 type="button"
                 onClick={handleSave}
                 disabled={!isDirty || isPending}
-                className="inline-flex h-8 items-center justify-center rounded-md bg-accent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isPending ? "Saving…" : "Save changes"}
               </button>
@@ -297,7 +372,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
                 type="button"
                 onClick={startEditing}
                 disabled={isReviewPending || isFindingActionPending}
-                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
               >
                 Edit
               </button>
@@ -305,7 +380,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
                 type="button"
                 onClick={handleRunReview}
                 disabled={isReviewPending || isFindingActionPending}
-                className="inline-flex h-8 items-center justify-center rounded-md bg-accent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isReviewPending ? "Reviewing…" : "Run review"}
               </button>
@@ -340,13 +415,6 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
               disabled={isPending}
             />
           </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            <ReviewStatusBadge status={displayReviewStatus} />
-            <span className="text-sm text-muted">
-              Created {formatDateTime(snippet.createdAt)}
-            </span>
-          </div>
         </div>
       ) : (
         <div className="mb-8">
@@ -357,10 +425,10 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
             <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-medium text-slate-700">
               {formatLanguageLabel(savedLanguage)}
             </span>
-            <ReviewStatusBadge status={displayReviewStatus} />
             <span className="text-sm text-muted">
               Created {formatDateTime(snippet.createdAt)}
             </span>
+            <ReviewStatusBadge status={displayReviewStatus} />
           </div>
         </div>
       )}
@@ -380,12 +448,6 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
           className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
         >
           {errors.form[0]}
-        </div>
-      ) : null}
-
-      {isReviewPending ? (
-        <div className="mb-6 rounded-lg border border-teal-200 bg-accent-soft/60 px-4 py-3 text-sm text-accent">
-          Review in progress — analyzing the snippet with the configured model…
         </div>
       ) : null}
 

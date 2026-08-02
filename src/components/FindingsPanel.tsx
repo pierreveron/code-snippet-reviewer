@@ -27,6 +27,32 @@ type FindingsPanelProps = {
   onActionPendingChange: (pending: boolean) => void;
 };
 
+function ReviewLoaderIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-6 w-6 animate-spin text-accent"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="currentColor"
+        strokeOpacity="0.25"
+        strokeWidth="2.5"
+      />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function emptyStateCopy(reviewStatus: ReviewStatus | "SUPERSEDED" | null): {
   title: string;
   description: string;
@@ -84,10 +110,23 @@ export function FindingsPanel({
 
   if (findings.length === 0) {
     const empty = emptyStateCopy(reviewStatus);
+    const isInProgress = reviewStatus === "IN_PROGRESS";
+
     return (
-      <div className="rounded-xl border border-dashed border-border bg-surface-muted/60 px-4 py-8 text-center">
+      <div
+        role={isInProgress ? "status" : undefined}
+        aria-live={isInProgress ? "polite" : undefined}
+        aria-busy={isInProgress || undefined}
+        className="flex min-h-52 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-muted/60 px-4 py-10 text-center"
+      >
+        {isInProgress ? (
+          <div className="mb-3">
+            <ReviewLoaderIcon />
+            <span className="sr-only">Review in progress</span>
+          </div>
+        ) : null}
         <p className="text-sm font-medium text-foreground">{empty.title}</p>
-        <p className="mt-1 text-sm text-muted">{empty.description}</p>
+        <p className="mt-1 max-w-56 text-sm text-muted">{empty.description}</p>
       </div>
     );
   }

@@ -245,7 +245,7 @@ export function LanguageCombobox({
         <ul
           id={listboxId}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-surface py-1 shadow-[var(--shadow)]"
+          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-surface shadow-(--shadow)"
         >
           {options.length === 0 ? (
             <li className="px-3 py-2 text-sm text-muted">No matches</li>
@@ -253,14 +253,19 @@ export function LanguageCombobox({
             options.map((language, index) => {
               const isActive = index === activeIndex;
               const isSelected = language.value === value;
+              const isFirst = index === 0;
+              const isLast = index === options.length - 1;
 
               return (
                 <li key={language.value} role="option" aria-selected={isSelected}>
                   <button
                     type="button"
-                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-normal ${
-                      isActive ? "bg-accent-soft text-accent" : "text-foreground"
-                    }`}
+                    className={[
+                      "flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-normal",
+                      isFirst ? "rounded-t-[7px]" : "",
+                      isLast ? "rounded-b-[7px]" : "",
+                      isActive ? "bg-accent-soft text-accent" : "text-foreground",
+                    ].join(" ")}
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => selectLanguage(language)}
                   >
