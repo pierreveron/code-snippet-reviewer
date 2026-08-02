@@ -1,6 +1,22 @@
 services:
+  migrate:
+    build:
+      context: .
+      target: builder
+    command: npm run db:deploy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:/app/data/dev.db
+    volumes:
+      - snippet-data:/app/data
+    restart: "no"
+
   app:
     build: .
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "3000:3000"
     env_file:
