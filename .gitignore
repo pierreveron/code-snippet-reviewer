@@ -41,6 +41,9 @@ yarn-error.log*
 *.db
 *.db-journal
 
+# generated Prisma Client
+/src/generated/prisma
+
 # vercel
 .vercel
 
