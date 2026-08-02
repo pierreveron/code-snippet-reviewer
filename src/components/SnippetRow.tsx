@@ -38,7 +38,7 @@ export function SnippetRow({ snippet }: SnippetRowProps) {
       <td className="border-b border-border px-5 py-3.5 font-semibold sm:px-6">
         <Link
           href={href}
-          className="relative z-10 text-foreground hover:text-accent"
+          className="text-foreground hover:text-accent"
           onClick={(event) => {
             // Let the real link handle navigation (new tab, etc.).
             event.stopPropagation();
