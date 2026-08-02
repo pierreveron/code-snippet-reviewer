@@ -96,7 +96,11 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
   );
 
   const highlightRange = useMemo(() => {
-    if (isEditing || !selectedFinding) {
+    if (
+      isEditing ||
+      !selectedFinding ||
+      selectedFinding.resolution !== "OPEN"
+    ) {
       return null;
     }
     return {
@@ -139,35 +143,41 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     setErrors({});
 
     startTransition(async () => {
-      const nextTitle = title.trim();
-      const reviewOutdated =
-        code !== savedCode || language !== savedLanguage;
-      const result = await updateSnippet({
-        id: snippet.id,
-        title: nextTitle,
-        language,
-        code,
-        expectedVersion: contentVersion,
-      });
+      try {
+        const nextTitle = title.trim();
+        const reviewOutdated =
+          code !== savedCode || language !== savedLanguage;
+        const result = await updateSnippet({
+          id: snippet.id,
+          title: nextTitle,
+          language,
+          code,
+          expectedVersion: contentVersion,
+        });
 
-      if (!result.ok) {
-        setErrors(result.errors);
-        return;
-      }
+        if (!result.ok) {
+          setErrors(result.errors);
+          return;
+        }
 
-      setTitle(nextTitle);
-      setSavedTitle(nextTitle);
-      setSavedLanguage(language);
-      setSavedCode(code);
-      setContentVersion(result.contentVersion);
-      setIsEditing(false);
-      if (reviewOutdated) {
-        setFindings([]);
-        setSelectedFindingId(null);
-        setReviewActionError(null);
-        setLocalReviewStatus(null);
+        setTitle(nextTitle);
+        setSavedTitle(nextTitle);
+        setSavedLanguage(language);
+        setSavedCode(code);
+        setContentVersion(result.contentVersion);
+        setIsEditing(false);
+        if (reviewOutdated) {
+          setFindings([]);
+          setSelectedFindingId(null);
+          setReviewActionError(null);
+          setLocalReviewStatus(null);
+        }
+        router.refresh();
+      } catch {
+        setErrors({
+          form: ["Couldn't save the snippet. Please try again."],
+        });
       }
-      router.refresh();
     });
   }
 
@@ -181,6 +191,8 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     }
 
     setLocalReviewStatus(result.status);
+    setFindings(result.findings);
+    setSelectedFindingId(defaultSelectedFindingId(result.findings));
 
     if (result.status === "FAILED") {
       setReviewActionError(
@@ -191,6 +203,8 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
         result.errorMessage ??
           "Another review finished first. Refresh to see the latest results.",
       );
+    } else {
+      setReviewActionError(null);
     }
 
     router.refresh();
@@ -204,7 +218,12 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
     setSelectedFindingId(null);
 
     startReviewTransition(async () => {
-      applyReviewResult(await runSnippetReview(snippet.id));
+      try {
+        applyReviewResult(await runSnippetReview(snippet.id));
+      } catch {
+        setReviewActionError("Couldn't run the review. Please try again.");
+        router.refresh();
+      }
     });
   }
 

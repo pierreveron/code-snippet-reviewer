@@ -75,71 +75,82 @@ export async function updateSnippet(input: {
     };
   }
 
-  const existing = await db.snippet.findUnique({
-    where: { id: input.id },
-    select: {
-      id: true,
-      code: true,
-      language: true,
-      contentVersion: true,
-    },
-  });
-
-  if (!existing) {
-    return {
-      ok: false,
-      errors: { title: ["Snippet not found"] },
-    };
-  }
-
-  // Code/language changes invalidate line-bound findings — drop the review.
-  const reviewOutdated =
-    existing.code !== parsed.data.code ||
-    existing.language !== parsed.data.language;
-
-  const saved = await db.$transaction(async (tx) => {
-    const updated = await tx.snippet.updateMany({
-      where: {
-        id: input.id,
-        contentVersion: input.expectedVersion,
-      },
-      data: {
-        title: parsed.data.title,
-        language: parsed.data.language,
-        code: parsed.data.code,
-        ...(reviewOutdated
-          ? { contentVersion: { increment: 1 as const } }
-          : {}),
+  try {
+    const existing = await db.snippet.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        code: true,
+        language: true,
+        contentVersion: true,
       },
     });
 
-    if (updated.count !== 1) {
-      return false;
+    if (!existing) {
+      return {
+        ok: false,
+        errors: { title: ["Snippet not found"] },
+      };
     }
 
-    if (reviewOutdated) {
-      await tx.review.deleteMany({
-        where: { snippetId: input.id },
+    // Code/language changes invalidate line-bound findings — drop the review.
+    const reviewOutdated =
+      existing.code !== parsed.data.code ||
+      existing.language !== parsed.data.language;
+
+    const saved = await db.$transaction(async (tx) => {
+      const updated = await tx.snippet.updateMany({
+        where: {
+          id: input.id,
+          contentVersion: input.expectedVersion,
+        },
+        data: {
+          title: parsed.data.title,
+          language: parsed.data.language,
+          code: parsed.data.code,
+          ...(reviewOutdated
+            ? { contentVersion: { increment: 1 as const } }
+            : {}),
+        },
       });
+
+      if (updated.count !== 1) {
+        return false;
+      }
+
+      if (reviewOutdated) {
+        await tx.review.deleteMany({
+          where: { snippetId: input.id },
+        });
+      }
+
+      return true;
+    });
+
+    if (!saved) {
+      return {
+        ok: false,
+        errors: {
+          form: [
+            "The snippet changed in another request. Refresh and try again.",
+          ],
+        },
+      };
     }
 
-    return true;
-  });
+    revalidatePath("/");
+    revalidatePath(`/snippets/${input.id}`);
 
-  if (!saved) {
+    return {
+      ok: true,
+      contentVersion: input.expectedVersion + (reviewOutdated ? 1 : 0),
+    };
+  } catch {
     return {
       ok: false,
       errors: {
-        form: ["The snippet changed in another request. Refresh and try again."],
+        form: ["Couldn't save the snippet. Please try again."],
       },
     };
   }
-
-  revalidatePath("/");
-  revalidatePath(`/snippets/${input.id}`);
-
-  return {
-    ok: true,
-    contentVersion: input.expectedVersion + (reviewOutdated ? 1 : 0),
-  };
 }
