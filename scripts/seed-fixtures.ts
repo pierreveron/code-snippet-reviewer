@@ -31,12 +31,24 @@ async function loadFixtures(): Promise<ReviewFixture[]> {
 }
 
 async function main() {
+  const ifEmpty = process.argv.includes("--if-empty");
   const fixtures = await loadFixtures();
   const db = createPrismaClient();
 
   try {
-    const deleted = await db.snippet.deleteMany();
-    console.log(`Deleted ${deleted.count} existing snippet(s)`);
+    if (ifEmpty) {
+      const existing = await db.snippet.count();
+      if (existing > 0) {
+        console.log(
+          `Skipping seed: database already has ${existing} snippet(s)`,
+        );
+        return;
+      }
+      console.log("Database empty — seeding fixtures");
+    } else {
+      const deleted = await db.snippet.deleteMany();
+      console.log(`Deleted ${deleted.count} existing snippet(s)`);
+    }
 
     let findingCount = 0;
 

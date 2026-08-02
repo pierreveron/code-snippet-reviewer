@@ -10,7 +10,8 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). On first start (empty
+database), Compose seeds the review fixtures so the UI has sample snippets.
 
 ## Local development (without Docker)
 
@@ -46,8 +47,10 @@ Default model: `REVIEW_MODEL=openai:gpt-5.6-luna` (override in `.env`).
 Switch providers with the same format, e.g. `anthropic:claude-sonnet-4-5`.
 
 `db:seed` deletes the snippets in the local database before recreating the
-fixtures. `mixed-security-bug` and `triple-issues` include completed reviews so
-their findings and apply actions can be exercised without calling an LLM.
+fixtures. Pass `--if-empty` to seed only when the database has no snippets
+(Compose uses this so Docker restarts keep user data). `mixed-security-bug` and
+`triple-issues` include completed reviews so their findings and apply actions
+can be exercised without calling an LLM.
 
 ### Debugging reviews
 
@@ -102,9 +105,9 @@ would otherwise make SQLite fail with "attempt to write a readonly database".
 
 ## Architecture overview
 
-The app uses SQLite through Prisma. Docker Compose runs committed migrations in a
-one-shot service before starting the Next.js app, and stores the database in a
-named volume so data survives container restarts.
+The app uses SQLite through Prisma. Docker Compose runs committed migrations,
+seeds fixtures when the database is empty, then starts the Next.js app. The
+database lives in a named volume so data survives container restarts.
 
 ## Review experience and user stories
 
