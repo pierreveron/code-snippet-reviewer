@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
+    "db:seed": "tsx scripts/seed-fixtures.ts",
     "review": "tsx scripts/review-snippet.ts",
     "eval:review": "tsx scripts/eval-review.ts",
     "devtools": "devtools"
