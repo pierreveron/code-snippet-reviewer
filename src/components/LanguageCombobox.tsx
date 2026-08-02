@@ -8,6 +8,7 @@ type LanguageComboboxProps = {
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  disabled?: boolean;
 };
 
 function filterLanguages(query: string): LanguageOption[] {
@@ -69,6 +70,7 @@ export function LanguageCombobox({
   value,
   onChange,
   error,
+  disabled = false,
 }: LanguageComboboxProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,6 +91,14 @@ export function LanguageCombobox({
       setQuery(selected?.label ?? "");
     }
   }, [selected?.label, isFiltering]);
+
+  useEffect(() => {
+    if (disabled) {
+      setOpen(false);
+      setIsFiltering(false);
+      setQuery(selected?.label ?? "");
+    }
+  }, [disabled, selected?.label]);
 
   useEffect(() => {
     if (!open) return;
@@ -124,6 +134,9 @@ export function LanguageCombobox({
   }
 
   function openList() {
+    if (disabled) {
+      return;
+    }
     setOpen(true);
     setIsFiltering(false);
     setQuery(selected?.label ?? "");
@@ -155,6 +168,8 @@ export function LanguageCombobox({
           aria-controls={listboxId}
           aria-autocomplete="list"
           aria-invalid={Boolean(error)}
+          aria-disabled={disabled}
+          disabled={disabled}
           autoComplete="off"
           placeholder="Search languages…"
           value={query}
@@ -170,6 +185,10 @@ export function LanguageCombobox({
             setOpen(true);
           }}
           onKeyDown={(event) => {
+            if (disabled) {
+              return;
+            }
+
             if (!open && (event.key === "ArrowDown" || event.key === "Enter")) {
               openList();
               return;
@@ -195,15 +214,19 @@ export function LanguageCombobox({
               closeList();
             }
           }}
-          className="h-10 w-full rounded-lg border border-border bg-surface py-2 pr-10 pl-3 text-sm text-foreground outline-none ring-accent/30 placeholder:text-muted focus:border-accent focus:ring-2"
+          className="h-10 w-full rounded-lg border border-border bg-surface py-2 pr-10 pl-3 text-sm text-foreground outline-none ring-accent/30 placeholder:text-muted focus:border-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
           tabIndex={-1}
+          disabled={disabled}
           aria-label={open ? "Close language list" : "Open language list"}
-          className="absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+          className="absolute inset-y-0 right-0 flex w-10 items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
           onMouseDown={(event) => {
             event.preventDefault();
+            if (disabled) {
+              return;
+            }
             if (open) {
               closeList();
               inputRef.current?.blur();

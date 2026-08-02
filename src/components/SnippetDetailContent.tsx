@@ -293,7 +293,8 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
               onChange={(event) => setTitle(event.target.value)}
               aria-label="Title"
               aria-invalid={Boolean(errors.title?.[0])}
-              className="h-10 w-full rounded-md border border-border bg-surface px-3 text-xl font-semibold text-foreground outline-none ring-accent/30 placeholder:text-muted focus:border-accent focus:ring-2"
+              disabled={isPending}
+              className="h-10 w-full rounded-md border border-border bg-surface px-3 text-xl font-semibold text-foreground outline-none ring-accent/30 placeholder:text-muted focus:border-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
             {errors.title?.[0] ? (
               <p className="mt-1.5 text-xs text-rose-600">{errors.title[0]}</p>
@@ -305,6 +306,7 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
               value={language}
               onChange={setLanguage}
               error={errors.language?.[0]}
+              disabled={isPending}
             />
           </div>
 
@@ -352,10 +354,10 @@ export function SnippetDetailContent({ snippet }: SnippetDetailContentProps) {
           <CodeEditor
             value={isEditing ? code : savedCode}
             language={isEditing ? language : savedLanguage}
-            readOnly={!isEditing}
+            readOnly={!isEditing || isPending}
             height="520px"
             highlightRange={highlightRange}
-            onChange={isEditing ? setCode : undefined}
+            onChange={isEditing && !isPending ? setCode : undefined}
           />
           {errors.code?.[0] ? (
             <p className="mt-1.5 text-xs text-rose-600">{errors.code[0]}</p>
