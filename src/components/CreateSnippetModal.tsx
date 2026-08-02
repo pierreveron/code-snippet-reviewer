@@ -273,10 +273,6 @@ export function CreateSnippetModal({ open, onClose }: CreateSnippetModalProps) {
             >
               New snippet
             </h2>
-            <p className="mt-0.5 text-sm text-muted">
-              Add a title, language, and code. Create and Review starts analysis
-              right away.
-            </p>
           </div>
           <button
             type="button"
